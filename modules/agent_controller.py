@@ -89,7 +89,9 @@ class CoordinatorAgent:
         response = self.formatter.format(response)
 
         return response
-
+def run_agent(file_path):
+    agent = CoordinatorAgent()
+    return agent.run(file_path)
 
 # ---------------- ENTRY FUNCTION ----------------
 def run_agent(file_path):
