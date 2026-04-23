@@ -41,7 +41,7 @@ See architecture diagram below:
 ---
 
 ## 🌐 Live App
-(put your streamlit link here)
+(https://34-mohod-ai-research-assistant-ui-mvxkvq.streamlit.app)
 
 ---
 
