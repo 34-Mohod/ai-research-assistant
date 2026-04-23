@@ -138,11 +138,11 @@ if uploaded_file:
             buffer = []
 
             def render(title, content):
-    # FIX: prevent empty title crash
     if not title or not title.strip():
         title = "📄 Section"
 
     with st.expander(title, expanded=True):
+        st.write(content)
 
                     if title == "🚀 Key Contributions":
                         for line in content:
