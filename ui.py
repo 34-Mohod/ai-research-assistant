@@ -1,196 +1,257 @@
 import streamlit as st
 import tempfile
+import time
 import re
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+
+# 👉 If this fails, comment it temporarily
 from modules.agent_controller import run_agent
 
-# ---------------- CONFIG ----------------
-st.set_page_config(page_title="AI Research Assistant Pro", layout="wide")
 
-# ---------------- STYLE ----------------
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(
+    page_title="AI Research Assistant",
+    layout="wide",
+    page_icon="🧠"
+)
+
+# ---------------- CSS ----------------
 st.markdown("""
 <style>
-body {background-color: #0f172a; color: #e2e8f0;}
+body {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
 
-.card {
+.title {
+    font-size: 42px;
+    font-weight: 800;
+    text-align: center;
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    text-align: center;
+    color: #94a3b8;
+    margin-bottom: 25px;
+}
+
+.metric-card {
     background: #111827;
-    padding: 18px;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid #1f2937;
+    text-align: center;
+}
+
+.section-card {
+    background: #111827;
+    padding: 20px;
     border-radius: 14px;
     border: 1px solid #1f2937;
     margin-bottom: 15px;
 }
 
-.metric {
-    font-size: 28px;
-    font-weight: bold;
+.stButton > button {
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    color: white;
+    border-radius: 10px;
+    height: 45px;
+    border: none;
+    font-weight: 600;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- HEADER ----------------
-st.markdown("# 🧠 AI Research Assistant Pro")
+st.markdown('<div class="title">🧠 AI Research Assistant</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">RF • Antenna • THz • AI-powered Research Analysis</div>', unsafe_allow_html=True)
 
-# ---------------- FILE INPUT ----------------
-colA, colB = st.columns(2)
+# ---------------- FILE UPLOAD ----------------
+uploaded_file = st.file_uploader("📄 Upload Research Paper", type=["pdf"])
 
-file1 = colA.file_uploader("Upload Paper 1", type=["pdf"])
-file2 = colB.file_uploader("Upload Paper 2 (optional)", type=["pdf"])
+# ---------------- SESSION ----------------
+if "output" not in st.session_state:
+    st.session_state.output = None
+
+
+# ---------------- CLEAN FUNCTION ----------------
+def clean_line(line):
+    return line.replace("*", "").strip()
+
 
 # ---------------- PARSER ----------------
-def extract(pattern, text):
-    m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-    return m.group(1).strip() if m else ""
+def parse_output(output):
 
-def find_val(key, text):
-    m = re.search(key + r".*?([-+]?\d+\.?\d*)", text, re.IGNORECASE)
-    return float(m.group(1)) if m else 0
-
-def parse(text):
-    return {
-        "title": extract(r"Title:\s*(.+)", text),
-        "summary": extract(r"Summary:\s*(.*?)\n\n", text),
-        "contrib": extract(r"Key Contributions:\s*(.*?)\n\n", text),
-        "method": extract(r"Methodology:\s*(.*?)\n\n", text),
-        "results": extract(r"Results:\s*(.*?)\n\n", text),
-        "gain": find_val("Gain", text),
-        "s11": find_val("S11", text),
-        "bw": find_val("Bandwidth", text)
+    sections = {
+        "title": [],
+        "summary": [],
+        "contributions": [],
+        "methodology": [],
+        "results": []
     }
 
-# ---------------- RUN ----------------
-def process(file):
+    current = None
+
+    for raw in output.split("\n"):
+        line = clean_line(raw)
+
+        if not line:
+            continue
+
+        lower = line.lower()
+
+        if "title" in lower:
+            current = "title"
+            continue
+
+        elif "summary" in lower:
+            current = "summary"
+            continue
+
+        elif "key contributions" in lower:
+            current = "contributions"
+            continue
+
+        elif "methodology" in lower:
+            current = "methodology"
+            continue
+
+        elif "results" in lower:
+            current = "results"
+            continue
+
+        if current:
+            sections[current].append(line)
+
+    # remove garbage
+    for key in sections:
+        sections[key] = [l for l in sections[key] if l not in ["", ".", "**"]]
+
+    return sections
+
+
+# ---------------- METRIC EXTRACTOR ----------------
+def extract_metrics(text):
+    gain = None
+    s11 = None
+    bandwidth = None
+
+    gain_match = re.search(r'(\d+\.?\d*)\s*dBi', text)
+    s11_match = re.search(r'-\d+\.?\d*\s*dB', text)
+    bw_match = re.search(r'(\d+\.?\d*)\s*%', text)
+
+    if gain_match:
+        gain = float(gain_match.group(1))
+
+    if s11_match:
+        s11 = float(s11_match.group(0).replace(" dB", ""))
+
+    if bw_match:
+        bandwidth = float(bw_match.group(1))
+
+    return gain, s11, bandwidth
+
+
+# ---------------- PROCESS ----------------
+if uploaded_file:
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(file.read())
-        return parse(run_agent(tmp.name))
+        tmp.write(uploaded_file.read())
+        pdf_path = tmp.name
 
-if st.button("🚀 Analyze"):
-    if file1:
-        st.session_state["p1"] = process(file1)
-    if file2:
-        st.session_state["p2"] = process(file2)
+    st.success("File uploaded")
 
-# ---------------- TABS ----------------
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📈 Comparison", "🧠 Insights"])
+    if st.button("🚀 Generate"):
 
-# =========================================================
-# ================= TAB 1 DASHBOARD ========================
-# =========================================================
-with tab1:
-    if "p1" in st.session_state:
+        progress = st.progress(0)
+        for i in range(100):
+            time.sleep(0.01)
+            progress.progress(i + 1)
 
-        d = st.session_state["p1"]
+        try:
+            output = run_agent(pdf_path)
+        except:
+            output = "ERROR: Agent not working"
 
-        st.markdown(f"## 📄 {d['title'] or 'Research Paper'}")
+        st.session_state.output = output
+        progress.empty()
 
-        # -------- METRICS --------
-        c1, c2, c3 = st.columns(3)
-        c1.markdown(f"<div class='card'><div>Gain</div><div class='metric'>{d['gain']} dBi</div></div>", unsafe_allow_html=True)
-        c2.markdown(f"<div class='card'><div>S11</div><div class='metric'>{d['s11']} dB</div></div>", unsafe_allow_html=True)
-        c3.markdown(f"<div class='card'><div>Bandwidth</div><div class='metric'>{d['bw']}%</div></div>", unsafe_allow_html=True)
+
+# ---------------- OUTPUT ----------------
+if st.session_state.output:
+
+    output = st.session_state.output
+
+    sections = parse_output(output)
+    gain, s11, bandwidth = extract_metrics(output)
+
+    tab1, tab2, tab3 = st.tabs(["📊 Analysis", "🧾 Raw", "📈 Insights"])
+
+    # ================= TAB 1 =================
+    with tab1:
+
+        # ---- METRICS ----
+        col1, col2, col3 = st.columns(3)
+
+        col1.markdown(f'<div class="metric-card"><h3>Gain</h3><h2>{gain if gain else "N/A"} dBi</h2></div>', unsafe_allow_html=True)
+        col2.markdown(f'<div class="metric-card"><h3>S11</h3><h2>{s11 if s11 else "N/A"} dB</h2></div>', unsafe_allow_html=True)
+        col3.markdown(f'<div class="metric-card"><h3>Bandwidth</h3><h2>{bandwidth if bandwidth else "N/A"} %</h2></div>', unsafe_allow_html=True)
 
         st.markdown("---")
 
-        left, right = st.columns([1.2, 1])
+        # ---- CONTENT ----
+        col1, col2 = st.columns(2)
 
-        with left:
+        with col1:
             st.markdown("### 🧠 Summary")
-            st.markdown(f"<div class='card'>{d['summary']}</div>", unsafe_allow_html=True)
+            st.markdown('<div class="section-card">' + " ".join(sections["summary"]) + '</div>', unsafe_allow_html=True)
 
             st.markdown("### 🚀 Contributions")
-            for c in d["contrib"].split("•"):
-                if c.strip():
-                    st.write("✔", c.strip())
+            st.markdown('<div class="section-card">' + " ".join(sections["contributions"]) + '</div>', unsafe_allow_html=True)
 
-        with right:
+        with col2:
             st.markdown("### ⚙️ Methodology")
-            st.markdown(f"<div class='card'>{d['method']}</div>", unsafe_allow_html=True)
+            st.markdown('<div class="section-card">' + " ".join(sections["methodology"]) + '</div>', unsafe_allow_html=True)
 
             st.markdown("### 📊 Results")
-            for r in d["results"].split(","):
-                if r.strip():
-                    st.write("•", r.strip())
+            st.markdown('<div class="section-card">' + " ".join(sections["results"]) + '</div>', unsafe_allow_html=True)
 
         st.markdown("---")
 
-        # -------- RADAR CHART --------
-        st.markdown("### 📡 Performance Radar")
+        # ---- CHART ----
+        if gain and bandwidth:
+            st.subheader("📈 Performance Chart")
 
-        fig = go.Figure()
+            fig, ax = plt.subplots()
+            ax.bar(["Gain", "Bandwidth"], [gain, bandwidth])
+            st.pyplot(fig)
 
-        fig.add_trace(go.Scatterpolar(
-            r=[d["gain"], abs(d["s11"]), d["bw"]],
-            theta=["Gain", "S11", "Bandwidth"],
-            fill='toself'
-        ))
+        # ---- SCORE ----
+        if gain:
+            score = min(100, int(gain * 8))
+            st.subheader("🏆 Score")
+            st.progress(score / 100)
+            st.success(f"{score}/100")
 
-        fig.update_layout(
-            polar=dict(bgcolor="#0f172a"),
-            paper_bgcolor="#0f172a",
-            font=dict(color="white")
-        )
+    # ================= TAB 2 =================
+    with tab2:
+        st.code(output)
 
-        st.plotly_chart(fig, use_container_width=True)
+    # ================= TAB 3 =================
+    with tab3:
 
-# =========================================================
-# ================= TAB 2 COMPARISON =======================
-# =========================================================
-with tab2:
-    if "p1" in st.session_state and "p2" in st.session_state:
+        st.subheader("📈 Insights")
 
-        p1 = st.session_state["p1"]
-        p2 = st.session_state["p2"]
+        if gain and gain > 10:
+            st.success("High gain antenna detected")
 
-        st.markdown("## 📊 Comparison")
+        if s11 and s11 < -10:
+            st.info("Good impedance matching")
 
-        df = {
-            "Metric": ["Gain", "S11", "Bandwidth"],
-            "Paper 1": [p1["gain"], p1["s11"], p1["bw"]],
-            "Paper 2": [p2["gain"], p2["s11"], p2["bw"]],
-        }
+        if bandwidth and bandwidth > 30:
+            st.warning("Wide bandwidth design")
 
-        st.dataframe(df)
-
-        fig = go.Figure()
-
-        fig.add_trace(go.Bar(name="Paper 1", x=df["Metric"], y=df["Paper 1"]))
-        fig.add_trace(go.Bar(name="Paper 2", x=df["Metric"], y=df["Paper 2"]))
-
-        fig.update_layout(barmode='group', paper_bgcolor="#0f172a", font=dict(color="white"))
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    else:
-        st.warning("Upload 2 papers for comparison")
-
-# =========================================================
-# ================= TAB 3 INSIGHTS =========================
-# =========================================================
-with tab3:
-    if "p1" in st.session_state:
-
-        d = st.session_state["p1"]
-
-        st.markdown("## 🧠 AI Insights")
-
-        score = 0
-
-        if d["gain"] > 8:
-            st.success("✔ Strong Gain")
-            score += 30
-
-        if d["s11"] < -10:
-            st.success("✔ Good Impedance Matching")
-            score += 30
-
-        if d["bw"] > 20:
-            st.success("✔ Wide Bandwidth")
-            score += 40
-
-        st.markdown("---")
-
-        st.subheader("🏆 Final Score")
-        st.progress(score / 100)
-        st.success(f"{score}/100")
-
-    else:
-        st.warning("Run analysis first")
+        st.write("✔ RF Analysis Complete")
