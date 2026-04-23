@@ -20,7 +20,10 @@ See architecture diagram below:
 ![Architecture](architecture.png)
 
 ---
+## 🎥 Demo Video
 
+Watch the working demo here:  
+https://drive.google.com/file/d/1encU9aMi3axmI6CwBVRyPgsHumy_rcvw/view?usp=sharing
 ## ⚙️ Tech Stack
 - Python
 - Streamlit
