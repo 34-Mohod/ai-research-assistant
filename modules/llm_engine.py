@@ -45,7 +45,7 @@ TEXT:
         )
 
         output = response.choices[0].message.content.strip()
-
+        print("RAW LLM OUTPUT:\n", output)
         # Extract JSON safely
         start = output.find("{")
         end = output.rfind("}") + 1

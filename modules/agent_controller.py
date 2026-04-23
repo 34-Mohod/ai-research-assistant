@@ -1,4 +1,4 @@
-# modules/agent_controller.py
+/var/folders/69/n12rf2p57llbpg5pr_2h0r9c0000gn/T/TemporaryItems/NSIRD_screencaptureui_36ASwO/Screenshot\ 2026-04-24\ at\ 2.43.27 AM.png # modules/agent_controller.py
 
 from modules.pdf_extractor import extract_text
 from modules.llm_engine import summarize_text
@@ -21,34 +21,32 @@ class CriticAgent:
     Validates and refines output
     """
 
-    def review(self, response):
-        try:
-            data = json.loads(response)
+def review(self, response):
+    try:
+        data = response  # FIX: already dict
 
-            # if LLM returned error
-            if "error" in data:
-                return response
+        # if LLM returned error
+        if "error" in data:
+            return data
 
-            # basic validation
-            if not data.get("summary"):
-                data["summary"] = "Summary not generated"
+        # basic validation
+        if not data.get("summary"):
+            data["summary"] = "Summary not generated"
 
-            if not data.get("metrics"):
-                data["metrics"] = {
-                    "gain": None,
-                    "s11": None,
-                    "bandwidth": None
-                }
+        if not data.get("metrics"):
+            data["metrics"] = {
+                "gain": None,
+                "s11": None,
+                "bandwidth": None
+            }
 
-            return json.dumps(data)
+        return data
 
-        except:
-            # fallback if not valid JSON
-            return json.dumps({
-                "error": "Invalid JSON from LLM",
-                "raw": response
-            })
-
+    except Exception as e:
+        return {
+            "error": "Processing failed",
+            "details": str(e)
+        }         
 
 # ---------------- AGENT 3 ----------------
 class FormatterAgent:
