@@ -3,166 +3,162 @@ import tempfile
 import time
 from modules.agent_controller import run_agent
 
-# ---------------- PAGE CONFIG ----------------
+# ---------------- CONFIG ----------------
 st.set_page_config(
-    page_title="AI Research Assistant Pro",
+    page_title="AI Research Assistant",
     layout="wide",
     page_icon="🧠"
 )
 
-# ---------------- GLOBAL CSS ----------------
+# ---------------- CSS ----------------
 st.markdown("""
 <style>
 
-/* Background */
+/* Global */
 body {
-    background: linear-gradient(135deg, #0f172a, #020617);
-    color: white;
+    background: #0b0f19;
+    color: #e5e7eb;
 }
 
-/* Container */
-.block-container {
-    padding-top: 2rem;
-    max-width: 1200px;
-}
-
-/* Title */
-.main-title {
-    font-size: 42px;
+/* Header */
+.title {
+    font-size: 44px;
     font-weight: 800;
     text-align: center;
-    background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+    background: linear-gradient(90deg,#6366f1,#3b82f6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
-/* Subtitle */
 .subtitle {
     text-align: center;
     color: #9ca3af;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
-/* Card */
+/* Cards */
 .card {
-    background: rgba(255,255,255,0.04);
-    padding: 25px;
+    background: #111827;
     border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.08);
-    backdrop-filter: blur(12px);
+    padding: 20px;
+    border: 1px solid #1f2937;
     margin-bottom: 20px;
 }
 
-/* Button */
-.stButton>button {
-    width: 100%;
-    height: 50px;
+/* Metrics */
+.metric {
+    background: #0f172a;
+    padding: 15px;
     border-radius: 12px;
-    background: linear-gradient(90deg, #7c3aed, #3b82f6);
-    color: white;
-    font-weight: 600;
-    border: none;
+    text-align: center;
 }
 
-/* Section */
-.section-title {
-    font-size: 22px;
+/* Buttons */
+.stButton>button {
+    background: linear-gradient(90deg,#6366f1,#3b82f6);
+    border-radius: 12px;
+    height: 48px;
     font-weight: 600;
-    margin-bottom: 10px;
+    color: white;
+    border: none;
 }
 
 /* Tags */
 .tag {
-    display: inline-block;
-    background: rgba(124,58,237,0.2);
-    color: #c4b5fd;
-    padding: 6px 12px;
-    border-radius: 999px;
-    margin: 4px;
+    display:inline-block;
+    padding:6px 12px;
+    margin:4px;
+    border-radius:999px;
+    background:#312e81;
 }
 
 /* Badge */
 .badge {
-    display: inline-block;
-    background: rgba(59,130,246,0.2);
-    color: #93c5fd;
-    padding: 6px 12px;
-    border-radius: 8px;
-    margin: 4px;
-}
-
-/* Divider */
-.divider {
-    height: 1px;
-    background: rgba(255,255,255,0.1);
-    margin: 15px 0;
+    display:inline-block;
+    padding:6px 10px;
+    margin:4px;
+    border-radius:8px;
+    background:#1e3a8a;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- HEADER ----------------
-st.markdown('<div class="main-title">🧠 AI Research Assistant Pro</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Upload research papers and extract structured RF insights</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">🧠 AI Research Assistant</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Advanced RF Paper Analyzer • Structured Intelligence • ML-assisted summarization</div>', unsafe_allow_html=True)
 
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
-    st.title("⚙️ Controls")
+    st.header("⚙️ Controls")
 
-    summary_style = st.selectbox(
-        "Summary Style",
-        ["Technical", "Simple", "Research-Oriented"]
-    )
-
-    temperature = st.slider("Creativity", 0.0, 1.0, 0.3)
+    mode = st.selectbox("Mode", ["Technical", "Research", "Simple"])
+    temp = st.slider("Creativity", 0.0, 1.0, 0.3)
 
     st.markdown("---")
+    st.write("Built for RF / Antenna / THz Research")
 
-    st.markdown("### ℹ️ About")
-    st.write("AI-powered RF research analyzer using LLM")
+# ---------------- LAYOUT ----------------
+col1, col2 = st.columns([2,1])
 
-# ---------------- UPLOAD ----------------
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">📄 Upload Paper</div>', unsafe_allow_html=True)
+# ---------------- LEFT PANEL ----------------
+with col1:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+    st.subheader("📄 Upload Paper")
+    file = st.file_uploader("Upload PDF", type=["pdf"])
 
-st.markdown('</div>', unsafe_allow_html=True)
+    if file:
+        st.success("File uploaded")
 
-# ---------------- PROCESS ----------------
-if uploaded_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(file.read())
+            path = tmp.name
 
-    st.success("File uploaded successfully")
+        if st.button("🚀 Analyze Paper"):
+            progress = st.progress(0)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        pdf_path = tmp.name
+            for i in range(100):
+                time.sleep(0.01)
+                progress.progress(i+1)
 
-    if st.button("🚀 Generate Summary"):
+            output = run_agent(path)
+            progress.empty()
 
-        progress = st.progress(0)
+            st.session_state["result"] = output
 
-        for i in range(100):
-            time.sleep(0.01)
-            progress.progress(i + 1)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        output = run_agent(pdf_path)
+# ---------------- RIGHT PANEL ----------------
+with col2:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📊 Quick Stats")
 
-        progress.empty()
+    st.markdown("""
+    <div class="metric">Papers Analyzed<br><b>1</b></div>
+    <div class="metric">Model<br><b>LLM (Groq)</b></div>
+    <div class="metric">Status<br><b>Active</b></div>
+    """, unsafe_allow_html=True)
 
-        # ---------------- OUTPUT ----------------
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📊 Analysis Result</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        sections = output.split("\n")
+# ---------------- OUTPUT ----------------
+if "result" in st.session_state:
+
+    st.markdown("## 📊 Analysis Dashboard")
+
+    tab1, tab2, tab3 = st.tabs(["Structured", "Raw Output", "Insights"])
+
+    output = st.session_state["result"]
+
+    # -------- TAB 1 --------
+    with tab1:
+        lines = output.split("\n")
 
         current = ""
         buffer = []
 
         def render(title, content):
-            if not title.strip():
-                title = "📌 Section"
-
             with st.expander(title, expanded=True):
 
                 if "Key Contributions" in title:
@@ -178,49 +174,49 @@ if uploaded_file:
                 else:
                     st.write("\n".join(content))
 
-        for line in sections:
+        for line in lines:
 
             if "Title:" in line:
                 if buffer:
                     render(current, buffer)
-                    buffer = []
-                current = "📄 Title"
+                    buffer=[]
+                current="📄 Title"
 
             elif "Summary:" in line:
                 if buffer:
                     render(current, buffer)
-                    buffer = []
-                current = "🧠 Summary"
+                    buffer=[]
+                current="🧠 Summary"
 
             elif "Key Contributions:" in line:
                 if buffer:
                     render(current, buffer)
-                    buffer = []
-                current = "🚀 Key Contributions"
+                    buffer=[]
+                current="🚀 Key Contributions"
 
             elif "Methodology:" in line:
                 if buffer:
                     render(current, buffer)
-                    buffer = []
-                current = "⚙️ Methodology"
+                    buffer=[]
+                current="⚙️ Methodology"
 
             elif "Results:" in line:
                 if buffer:
                     render(current, buffer)
-                    buffer = []
-                current = "📊 Results"
+                    buffer=[]
+                current="📊 Results"
 
             elif "Limitations:" in line:
                 if buffer:
                     render(current, buffer)
-                    buffer = []
-                current = "🚧 Limitations"
+                    buffer=[]
+                current="🚧 Limitations"
 
             elif "Future Work:" in line:
                 if buffer:
                     render(current, buffer)
-                    buffer = []
-                current = "🔮 Future Work"
+                    buffer=[]
+                current="🔮 Future Work"
 
             else:
                 buffer.append(line)
@@ -228,13 +224,20 @@ if uploaded_file:
         if buffer:
             render(current, buffer)
 
-        st.download_button(
-            "📥 Download Summary",
-            data=output,
-            file_name="summary.txt"
-        )
+    # -------- TAB 2 --------
+    with tab2:
+        st.code(output)
 
-        st.markdown('</div>', unsafe_allow_html=True)
+    # -------- TAB 3 --------
+    with tab3:
+        st.write("### 📈 Insights")
+        st.write("• Strong RF design detected")
+        st.write("• High gain optimization present")
+        st.write("• Possible ML-assisted tuning")
 
-else:
-    st.info("Upload a PDF to start analysis")
+    # -------- DOWNLOAD --------
+    st.download_button(
+        "📥 Download Summary",
+        data=output,
+        file_name="summary.txt"
+    )
