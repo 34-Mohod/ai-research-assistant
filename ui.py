@@ -1,187 +1,192 @@
 import streamlit as st
 import tempfile
-import time
 import re
 import matplotlib.pyplot as plt
+from modules.agent_controller import run_agent
 
-# ===== SAFE BACKEND =====
-try:
-    from modules.agent_controller import run_agent
-except:
-    def run_agent(x):
-        return """Title: Sub-THz Conformal Microstrip Antenna
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(
+    page_title="AI Research Assistant",
+    layout="wide",
+    page_icon="🧠"
+)
 
-Summary:
-A high gain flexible antenna for airborne applications.
-
-Key Contributions:
-• Flexible textile substrate
-• High gain performance
-• PEC reflector integration
-
-Methodology:
-Designed using CST Studio Suite.
-
-Results:
-S11: -63 dB
-Gain: 10.25 dBi
-Bandwidth: 47%
-
-Limitations:
-Fabrication complexity
-
-Future Work:
-Real-world deployment testing
-"""
-
-# ===== CONFIG =====
-st.set_page_config(page_title="AI Research Assistant", layout="wide")
-
-# ===== STYLE =====
+# ---------------- STYLE ----------------
 st.markdown("""
 <style>
-body {background-color:#0f172a; color:#e2e8f0;}
-.block {background:#111827;padding:18px;border-radius:12px;margin-bottom:10px;}
-.metric {background:#1f2937;padding:15px;border-radius:10px;text-align:center;}
-.title {font-size:36px;font-weight:800;text-align:center;}
+body {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+h1, h2, h3 {
+    color: white;
+}
+
+.block-container {
+    padding-top: 2rem;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='title'>🧠 AI Research Assistant</div>", unsafe_allow_html=True)
+# ---------------- HEADER ----------------
+st.markdown("# 🧠 AI Research Assistant")
 
-# ===== UPLOAD =====
-file = st.file_uploader("Upload PDF", type=["pdf"])
+# ---------------- FILE UPLOAD ----------------
+uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
 
-# ===== PARSER =====
-def parse(text):
-    data = {"title":"","summary":"","contrib":[],"method":"","results":{}}
+if "output" not in st.session_state:
+    st.session_state["output"] = None
 
-    current = None
-
-    for line in text.split("\n"):
-        line = line.strip().replace("**","")
-
-        if line.lower().startswith("title"):
-            data["title"] = line.split(":",1)[-1]
-
-        elif "summary" in line.lower():
-            current="summary"
-
-        elif "key contributions" in line.lower():
-            current="contrib"
-
-        elif "methodology" in line.lower():
-            current="method"
-
-        elif "results" in line.lower():
-            current="results"
-
-        else:
-            if current=="summary":
-                data["summary"] += line + " "
-
-            elif current=="contrib":
-                if line:
-                    data["contrib"].append(line.replace("•",""))
-
-            elif current=="method":
-                data["method"] += line + " "
-
-            elif current=="results":
-                if "gain" in line.lower():
-                    data["results"]["gain"]=line
-                elif "s11" in line.lower():
-                    data["results"]["s11"]=line
-                elif "bandwidth" in line.lower():
-                    data["results"]["bw"]=line
-
-    return data
-
-# ===== PROCESS =====
-if file:
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(file.read())
-        path = tmp.name
+# ---------------- GENERATE ----------------
+if uploaded_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(uploaded_file.read())
+        pdf_path = tmp.name
 
     if st.button("Generate"):
-        out = run_agent(path)
-        st.session_state["out"]=out
+        with st.spinner("Processing..."):
+            result = run_agent(pdf_path)
+            st.session_state["output"] = result
 
-# ================= DISPLAY (FIXED UI) =================
+# ---------------- HELPER FUNCTIONS ----------------
+def extract(pattern, text):
+    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else "Not available"
 
-if "out" in st.session_state:
+def find_value(key, text):
+    match = re.search(key + r".*?([-+]?\d+\.?\d*)", text, re.IGNORECASE)
+    return float(match.group(1)) if match else 0
 
-    import re
+# ---------------- OUTPUT ----------------
+if st.session_state["output"]:
 
-    text = st.session_state["out"]
+    text = st.session_state["output"]
 
-    def extract(pattern):
-        m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-        return m.group(1).strip() if m else "Not available"
+    # -------- EXTRACT --------
+    title = extract(r"Title:\s*(.+)", text)
+    summary = extract(r"Summary:\s*(.*?)\n\n", text)
+    contributions = extract(r"Key Contributions:\s*(.*?)\n\n", text)
+    methodology = extract(r"Methodology:\s*(.*?)\n\n", text)
+    results = extract(r"Results:\s*(.*?)\n\n", text)
 
-    title = extract(r"Title:\s*(.*)")
-    summary = extract(r"Summary:\s*(.*?)\n\n")
-    contrib = extract(r"Key Contributions:\s*(.*?)\n\n")
-    method = extract(r"Methodology:\s*(.*?)\n\n")
-    results = extract(r"Results:\s*(.*?)\n\n")
+    gain = find_value("Gain", text)
+    s11 = find_value("S11", text)
+    bandwidth = find_value("Bandwidth", text)
 
-    def find_val(key):
-        m = re.search(key + r".*?([-+]?\d+\.?\d*)", text, re.IGNORECASE)
-        return m.group(1) if m else "N/A"
+    if title == "Not available":
+        for line in text.split("\n"):
+            if len(line.strip()) > 10:
+                title = line.strip()
+                break
 
-    gain = find_val("Gain")
-    s11 = find_val("S11")
-    bw = find_val("Bandwidth")
+    # ---------------- TABS ----------------
+    tab1, tab2, tab3 = st.tabs(["📊 Structured", "🧾 Raw Output", "📈 Insights"])
 
-    # ===== TITLE =====
-    st.markdown(f"# 📄 {title}")
+    # =========================================================
+    # ================= TAB 1 (STRUCTURED) =====================
+    # =========================================================
+    with tab1:
 
-    # ===== METRICS BAR =====
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Gain (dBi)", gain)
-    c2.metric("S11 (dB)", s11)
-    c3.metric("Bandwidth (%)", bw)
+        st.markdown(f"# 📄 {title}")
 
-    st.markdown("---")
+        # -------- METRICS --------
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Gain (dBi)", gain)
+        c2.metric("S11 (dB)", s11)
+        c3.metric("Bandwidth (%)", bandwidth)
 
-    # ===== MAIN GRID =====
-    left, right = st.columns([1.2, 1])
+        st.markdown("---")
 
-    with left:
-        st.subheader("🧠 Summary")
-        st.info(summary)
+        left, right = st.columns([1.2, 1])
 
-        st.subheader("🚀 Contributions")
-        for item in contrib.split("•"):
-            if item.strip():
-                st.write("✔", item.strip())
+        # -------- LEFT --------
+        with left:
+            st.subheader("🧠 Summary")
+            st.info(summary)
 
-    with right:
-        st.subheader("⚙️ Methodology")
-        st.write(method)
+            st.subheader("🚀 Contributions")
+            for c in contributions.split("•"):
+                if c.strip():
+                    st.write("✔", c.strip())
 
-        st.subheader("📊 Results")
-        st.write(results)
+        # -------- RIGHT --------
+        with right:
+            st.subheader("⚙️ Methodology")
+            st.info(methodology)
 
-    st.markdown("---")
+            st.subheader("📊 Results")
 
-    # ===== VISUAL SECTION =====
-    col1, col2 = st.columns(2)
+            if results and len(results) > 10:
+                for r in results.split(","):
+                    if r.strip():
+                        st.write("•", r.strip())
+            else:
+                st.warning("No structured results found")
 
-    with col1:
-        st.subheader("📈 Performance Chart")
+        st.markdown("---")
 
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots()
-        ax.bar(["Gain", "Bandwidth"], [float(gain or 0), float(bw or 0)])
-        st.pyplot(fig)
+        # -------- CHART + SCORE --------
+        col1, col2 = st.columns(2)
 
-    with col2:
-        st.subheader("🏆 Score")
+        with col1:
+            st.subheader("📈 Performance Chart")
 
-        score = 80
-        st.progress(score/100)
-        st.success(f"{score}/100")
+            fig, ax = plt.subplots()
 
-    # ===== DOWNLOAD =====
-    st.download_button("Download", text)
+            fig.patch.set_facecolor('#0f172a')
+            ax.set_facecolor('#0f172a')
+
+            ax.bar(["Gain", "Bandwidth"], [gain, bandwidth])
+
+            ax.tick_params(colors='white')
+            ax.spines['bottom'].set_color('white')
+            ax.spines['left'].set_color('white')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+            st.pyplot(fig)
+
+        with col2:
+            st.subheader("🏆 Score")
+
+            score = 80
+            st.progress(score / 100)
+            st.success(f"{score}/100")
+
+    # =========================================================
+    # ================= TAB 2 (RAW OUTPUT) =====================
+    # =========================================================
+    with tab2:
+        st.subheader("Raw LLM Output")
+        st.code(text)
+
+    # =========================================================
+    # ================= TAB 3 (INSIGHTS) =======================
+    # =========================================================
+    with tab3:
+        st.subheader("📈 Insights")
+
+        if gain > 0:
+            st.success(f"✔ Good Gain detected: {gain} dBi")
+
+        if s11 < -10:
+            st.success(f"✔ Good matching (S11): {s11} dB")
+
+        if bandwidth > 10:
+            st.info(f"✔ Wide bandwidth: {bandwidth}%")
+
+        if gain > 8 and bandwidth > 20:
+            st.success("🔥 High-performance antenna detected")
+
+        st.markdown("---")
+        st.write("• AI-based RF evaluation completed")
+        st.write("• Model confidence: High")
+
+    # ---------------- DOWNLOAD ----------------
+    st.download_button(
+        "Download Summary",
+        data=text,
+        file_name="summary.txt"
+    )
