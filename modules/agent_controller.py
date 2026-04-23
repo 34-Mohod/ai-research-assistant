@@ -75,9 +75,8 @@ class CoordinatorAgent:
         text = extract_text(file_path)
 
         if not text or len(text.strip()) < 50:
-            return json.dumps({
-                "error": "Empty or unreadable PDF"
-            })
+            return {
+    "error": "Empty or unreadable PDF"}
 
         # Step 2: LLM analysis
         response = self.research.run(text)
@@ -89,9 +88,6 @@ class CoordinatorAgent:
         response = self.formatter.format(response)
 
         return response
-def run_agent(file_path):
-    agent = CoordinatorAgent()
-    return agent.run(file_path)
 
 # ---------------- ENTRY FUNCTION ----------------
 def run_agent(file_path):
