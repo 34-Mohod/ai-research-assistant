@@ -1,192 +1,196 @@
 import streamlit as st
 import tempfile
 import re
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from modules.agent_controller import run_agent
 
-# ---------------- PAGE CONFIG ----------------
-st.set_page_config(
-    page_title="AI Research Assistant",
-    layout="wide",
-    page_icon="🧠"
-)
+# ---------------- CONFIG ----------------
+st.set_page_config(page_title="AI Research Assistant Pro", layout="wide")
 
 # ---------------- STYLE ----------------
 st.markdown("""
 <style>
-body {
-    background-color: #0f172a;
-    color: #e2e8f0;
+body {background-color: #0f172a; color: #e2e8f0;}
+
+.card {
+    background: #111827;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid #1f2937;
+    margin-bottom: 15px;
 }
 
-h1, h2, h3 {
-    color: white;
+.metric {
+    font-size: 28px;
+    font-weight: bold;
 }
-
-.block-container {
-    padding-top: 2rem;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- HEADER ----------------
-st.markdown("# 🧠 AI Research Assistant")
+st.markdown("# 🧠 AI Research Assistant Pro")
 
-# ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+# ---------------- FILE INPUT ----------------
+colA, colB = st.columns(2)
 
-if "output" not in st.session_state:
-    st.session_state["output"] = None
+file1 = colA.file_uploader("Upload Paper 1", type=["pdf"])
+file2 = colB.file_uploader("Upload Paper 2 (optional)", type=["pdf"])
 
-# ---------------- GENERATE ----------------
-if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        pdf_path = tmp.name
-
-    if st.button("Generate"):
-        with st.spinner("Processing..."):
-            result = run_agent(pdf_path)
-            st.session_state["output"] = result
-
-# ---------------- HELPER FUNCTIONS ----------------
+# ---------------- PARSER ----------------
 def extract(pattern, text):
-    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-    return match.group(1).strip() if match else "Not available"
+    m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    return m.group(1).strip() if m else ""
 
-def find_value(key, text):
-    match = re.search(key + r".*?([-+]?\d+\.?\d*)", text, re.IGNORECASE)
-    return float(match.group(1)) if match else 0
+def find_val(key, text):
+    m = re.search(key + r".*?([-+]?\d+\.?\d*)", text, re.IGNORECASE)
+    return float(m.group(1)) if m else 0
 
-# ---------------- OUTPUT ----------------
-if st.session_state["output"]:
+def parse(text):
+    return {
+        "title": extract(r"Title:\s*(.+)", text),
+        "summary": extract(r"Summary:\s*(.*?)\n\n", text),
+        "contrib": extract(r"Key Contributions:\s*(.*?)\n\n", text),
+        "method": extract(r"Methodology:\s*(.*?)\n\n", text),
+        "results": extract(r"Results:\s*(.*?)\n\n", text),
+        "gain": find_val("Gain", text),
+        "s11": find_val("S11", text),
+        "bw": find_val("Bandwidth", text)
+    }
 
-    text = st.session_state["output"]
+# ---------------- RUN ----------------
+def process(file):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(file.read())
+        return parse(run_agent(tmp.name))
 
-    # -------- EXTRACT --------
-    title = extract(r"Title:\s*(.+)", text)
-    summary = extract(r"Summary:\s*(.*?)\n\n", text)
-    contributions = extract(r"Key Contributions:\s*(.*?)\n\n", text)
-    methodology = extract(r"Methodology:\s*(.*?)\n\n", text)
-    results = extract(r"Results:\s*(.*?)\n\n", text)
+if st.button("🚀 Analyze"):
+    if file1:
+        st.session_state["p1"] = process(file1)
+    if file2:
+        st.session_state["p2"] = process(file2)
 
-    gain = find_value("Gain", text)
-    s11 = find_value("S11", text)
-    bandwidth = find_value("Bandwidth", text)
+# ---------------- TABS ----------------
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📈 Comparison", "🧠 Insights"])
 
-    if title == "Not available":
-        for line in text.split("\n"):
-            if len(line.strip()) > 10:
-                title = line.strip()
-                break
+# =========================================================
+# ================= TAB 1 DASHBOARD ========================
+# =========================================================
+with tab1:
+    if "p1" in st.session_state:
 
-    # ---------------- TABS ----------------
-    tab1, tab2, tab3 = st.tabs(["📊 Structured", "🧾 Raw Output", "📈 Insights"])
+        d = st.session_state["p1"]
 
-    # =========================================================
-    # ================= TAB 1 (STRUCTURED) =====================
-    # =========================================================
-    with tab1:
-
-        st.markdown(f"# 📄 {title}")
+        st.markdown(f"## 📄 {d['title'] or 'Research Paper'}")
 
         # -------- METRICS --------
         c1, c2, c3 = st.columns(3)
-        c1.metric("Gain (dBi)", gain)
-        c2.metric("S11 (dB)", s11)
-        c3.metric("Bandwidth (%)", bandwidth)
+        c1.markdown(f"<div class='card'><div>Gain</div><div class='metric'>{d['gain']} dBi</div></div>", unsafe_allow_html=True)
+        c2.markdown(f"<div class='card'><div>S11</div><div class='metric'>{d['s11']} dB</div></div>", unsafe_allow_html=True)
+        c3.markdown(f"<div class='card'><div>Bandwidth</div><div class='metric'>{d['bw']}%</div></div>", unsafe_allow_html=True)
 
         st.markdown("---")
 
         left, right = st.columns([1.2, 1])
 
-        # -------- LEFT --------
         with left:
-            st.subheader("🧠 Summary")
-            st.info(summary)
+            st.markdown("### 🧠 Summary")
+            st.markdown(f"<div class='card'>{d['summary']}</div>", unsafe_allow_html=True)
 
-            st.subheader("🚀 Contributions")
-            for c in contributions.split("•"):
+            st.markdown("### 🚀 Contributions")
+            for c in d["contrib"].split("•"):
                 if c.strip():
                     st.write("✔", c.strip())
 
-        # -------- RIGHT --------
         with right:
-            st.subheader("⚙️ Methodology")
-            st.info(methodology)
+            st.markdown("### ⚙️ Methodology")
+            st.markdown(f"<div class='card'>{d['method']}</div>", unsafe_allow_html=True)
 
-            st.subheader("📊 Results")
-
-            if results and len(results) > 10:
-                for r in results.split(","):
-                    if r.strip():
-                        st.write("•", r.strip())
-            else:
-                st.warning("No structured results found")
+            st.markdown("### 📊 Results")
+            for r in d["results"].split(","):
+                if r.strip():
+                    st.write("•", r.strip())
 
         st.markdown("---")
 
-        # -------- CHART + SCORE --------
-        col1, col2 = st.columns(2)
+        # -------- RADAR CHART --------
+        st.markdown("### 📡 Performance Radar")
 
-        with col1:
-            st.subheader("📈 Performance Chart")
+        fig = go.Figure()
 
-            fig, ax = plt.subplots()
+        fig.add_trace(go.Scatterpolar(
+            r=[d["gain"], abs(d["s11"]), d["bw"]],
+            theta=["Gain", "S11", "Bandwidth"],
+            fill='toself'
+        ))
 
-            fig.patch.set_facecolor('#0f172a')
-            ax.set_facecolor('#0f172a')
+        fig.update_layout(
+            polar=dict(bgcolor="#0f172a"),
+            paper_bgcolor="#0f172a",
+            font=dict(color="white")
+        )
 
-            ax.bar(["Gain", "Bandwidth"], [gain, bandwidth])
+        st.plotly_chart(fig, use_container_width=True)
 
-            ax.tick_params(colors='white')
-            ax.spines['bottom'].set_color('white')
-            ax.spines['left'].set_color('white')
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
+# =========================================================
+# ================= TAB 2 COMPARISON =======================
+# =========================================================
+with tab2:
+    if "p1" in st.session_state and "p2" in st.session_state:
 
-            st.pyplot(fig)
+        p1 = st.session_state["p1"]
+        p2 = st.session_state["p2"]
 
-        with col2:
-            st.subheader("🏆 Score")
+        st.markdown("## 📊 Comparison")
 
-            score = 80
-            st.progress(score / 100)
-            st.success(f"{score}/100")
+        df = {
+            "Metric": ["Gain", "S11", "Bandwidth"],
+            "Paper 1": [p1["gain"], p1["s11"], p1["bw"]],
+            "Paper 2": [p2["gain"], p2["s11"], p2["bw"]],
+        }
 
-    # =========================================================
-    # ================= TAB 2 (RAW OUTPUT) =====================
-    # =========================================================
-    with tab2:
-        st.subheader("Raw LLM Output")
-        st.code(text)
+        st.dataframe(df)
 
-    # =========================================================
-    # ================= TAB 3 (INSIGHTS) =======================
-    # =========================================================
-    with tab3:
-        st.subheader("📈 Insights")
+        fig = go.Figure()
 
-        if gain > 0:
-            st.success(f"✔ Good Gain detected: {gain} dBi")
+        fig.add_trace(go.Bar(name="Paper 1", x=df["Metric"], y=df["Paper 1"]))
+        fig.add_trace(go.Bar(name="Paper 2", x=df["Metric"], y=df["Paper 2"]))
 
-        if s11 < -10:
-            st.success(f"✔ Good matching (S11): {s11} dB")
+        fig.update_layout(barmode='group', paper_bgcolor="#0f172a", font=dict(color="white"))
 
-        if bandwidth > 10:
-            st.info(f"✔ Wide bandwidth: {bandwidth}%")
+        st.plotly_chart(fig, use_container_width=True)
 
-        if gain > 8 and bandwidth > 20:
-            st.success("🔥 High-performance antenna detected")
+    else:
+        st.warning("Upload 2 papers for comparison")
+
+# =========================================================
+# ================= TAB 3 INSIGHTS =========================
+# =========================================================
+with tab3:
+    if "p1" in st.session_state:
+
+        d = st.session_state["p1"]
+
+        st.markdown("## 🧠 AI Insights")
+
+        score = 0
+
+        if d["gain"] > 8:
+            st.success("✔ Strong Gain")
+            score += 30
+
+        if d["s11"] < -10:
+            st.success("✔ Good Impedance Matching")
+            score += 30
+
+        if d["bw"] > 20:
+            st.success("✔ Wide Bandwidth")
+            score += 40
 
         st.markdown("---")
-        st.write("• AI-based RF evaluation completed")
-        st.write("• Model confidence: High")
 
-    # ---------------- DOWNLOAD ----------------
-    st.download_button(
-        "Download Summary",
-        data=text,
-        file_name="summary.txt"
-    )
+        st.subheader("🏆 Final Score")
+        st.progress(score / 100)
+        st.success(f"{score}/100")
+
+    else:
+        st.warning("Run analysis first")
