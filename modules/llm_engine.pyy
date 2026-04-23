@@ -1,0 +1,73 @@
+import os
+from groq import Groq
+
+# Initialize Groq client
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
+def summarize_text(text):
+    # Limit input size
+    text = text[:5000]
+
+    prompt = f"""
+You are a senior RF and Antenna Research Scientist.
+
+Analyze the research paper and generate a structured summary.
+
+STRICT INSTRUCTIONS:
+- Use IEEE-style tone
+- Be concise and technical
+- Avoid generic phrases
+- Focus on RF parameters (Gain, S11, Bandwidth, Radiation)
+
+----------------------------------------
+
+OUTPUT FORMAT:
+
+Title:
+<Concise technical title>
+
+Summary:
+<Max 2 lines>
+
+Key Contributions:
+• point 1
+• point 2
+• point 3
+• point 4
+
+Methodology:
+<Design + ML explanation>
+
+Results:
+• S11:
+• Gain:
+• Bandwidth:
+• Radiation:
+• Other metric:
+
+Limitations:
+• point 1
+• point 2
+
+Future Work:
+• point 1
+• point 2
+
+----------------------------------------
+
+TEXT:
+{text}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",   # ✅ working model
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"Error: {str(e)}"
