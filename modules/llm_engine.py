@@ -2,36 +2,36 @@ import os
 import json
 from groq import Groq
 
-# Initialize client using environment variable
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
 
 def summarize_text(text):
     text = text[:3000]
 
     prompt = f"""
-You are an expert RF antenna research analyst.
+You are an RF antenna research expert.
 
 Return STRICT JSON ONLY.
 
 FORMAT:
 {{
-"title": "string",
-"summary": "2-3 line summary",
-"contributions": ["point1","point2","point3"],
-"methodology": "short explanation",
-"results": "short result",
-"metrics": {{
+  "title": "string",
+  "summary": "2-3 lines",
+  "contributions": ["point1","point2","point3"],
+  "methodology": "short explanation",
+  "results": "short result",
+  "metrics": {{
     "gain": number,
     "s11": number,
     "bandwidth": number
-}}
+  }}
 }}
 
 RULES:
 - No markdown
 - No explanation
 - Only JSON
-- If value missing → use null
+- If missing → use null
 
 TEXT:
 {text}
@@ -45,29 +45,16 @@ TEXT:
         )
 
         output = response.choices[0].message.content.strip()
-        print("RAW LLM OUTPUT:\n", output)
-        # Extract JSON safely
+
+        # extract JSON safely
         start = output.find("{")
         end = output.rfind("}") + 1
+        clean = output[start:end]
 
-        if start == -1 or end == -1:
-            raise ValueError("Invalid JSON from LLM")
-
-        clean_json = output[start:end]
-
-        return json.loads(clean_json)
+        return json.loads(clean)
 
     except Exception as e:
-        print("LLM ERROR:", e)
         return {
-            "title": "Error",
-            "summary": "LLM failed",
-            "contributions": [],
-            "methodology": "",
-            "results": "",
-            "metrics": {
-                "gain": None,
-                "s11": None,
-                "bandwidth": None
-            }
+            "error": "LLM failed",
+            "details": str(e)
         }
