@@ -13,14 +13,10 @@ st.set_page_config(
 # ---------------- MODERN CSS ----------------
 st.markdown("""
 <style>
-
-/* Background */
 body {
     background-color: #0f172a;
     color: #e2e8f0;
 }
-
-/* Title */
 .title {
     font-size: 42px;
     font-weight: 800;
@@ -29,24 +25,11 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-
-/* Subtitle */
 .subtitle {
     text-align: center;
     color: #94a3b8;
     margin-bottom: 25px;
 }
-
-/* Card */
-.card {
-    background: #111827;
-    padding: 20px;
-    border-radius: 16px;
-    border: 1px solid #1f2937;
-    margin-bottom: 20px;
-}
-
-/* Button */
 .stButton > button {
     background: linear-gradient(90deg, #6366f1, #3b82f6);
     color: white;
@@ -55,13 +38,10 @@ body {
     border: none;
     font-weight: 600;
 }
-
-/* Expander */
 .streamlit-expanderHeader {
     font-weight: 600;
     color: #c7d2fe;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -131,6 +111,14 @@ if st.session_state["result"]:
 
     output = st.session_state["result"]
 
+    # 🔥 AGENT VISUAL (NEW)
+    st.markdown("""
+    ### 🧠 Agent Workflow
+    1. **Perception Module** → Extract PDF text  
+    2. **Reasoning Module** → LLM analysis  
+    3. **Action Module** → Structured output  
+    """)
+
     tab1, tab2, tab3 = st.tabs(["📊 Structured", "🧾 Raw Output", "📈 Insights"])
 
     # ================= TAB 1 =================
@@ -163,7 +151,7 @@ if st.session_state["result"]:
                         j += 1
                     i = j - 1
 
-            # -------- SUMMARY --------
+            # -------- SUMMARY (FIXED STRONG) --------
             elif line.startswith("Summary"):
                 flush()
                 current = "🧠 Summary"
