@@ -138,11 +138,24 @@ if uploaded_file:
             buffer = []
 
             def render(title, content):
+    # Fix empty title (prevents Streamlit crash)
     if not title or not title.strip():
         title = "📄 Section"
 
     with st.expander(title, expanded=True):
-        st.write(content)
+
+        if title == "🚀 Key Contributions":
+            for line in content:
+                if line.strip():
+                    st.markdown(f"- {line.replace('•','').strip()}")
+
+        elif title == "📊 Results":
+            for line in content:
+                if line.strip():
+                    st.markdown(f"- {line.replace('•','').strip()}")
+
+        else:
+            st.write("\n".join(content))
 
                     if title == "🚀 Key Contributions":
                         for line in content:
