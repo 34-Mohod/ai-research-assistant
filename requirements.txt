@@ -3,3 +3,4 @@ groq
 PyMuPDF
 matplotlib
 pandas
+plotly
