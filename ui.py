@@ -136,52 +136,41 @@ if uploaded_file:
             sections = output.split("\n")
             current = "📄 Section"
             buffer = []
+def render(title, content):
 
-            def render(title, content):
-    # Ensure title is never empty
-                if not title or not title.strip():
-                   title = "📄 Section"
+    # prevent empty title crash
+
+    if not title or not title.strip():
+
+        title = "📄 Section"
 
     with st.expander(title, expanded=True):
 
-        if title == "🚀 Key Contributions":
-            for line in content:
-                if line.strip():
-                    st.markdown(f"- {line.replace('•','').strip()}")
-
-        elif title == "📊 Results":
-            for line in content:
-                if line.strip():
-                    st.markdown(f"- {line.replace('•','').strip()}")
-
-        else:
-            st.write("\n".join(content))
+        # Key Contributions
 
         if title == "🚀 Key Contributions":
+
             for line in content:
+
                 if line.strip():
+
                     st.markdown(f"- {line.replace('•','').strip()}")
+
+        # Results
 
         elif title == "📊 Results":
+
             for line in content:
+
                 if line.strip():
+
                     st.markdown(f"- {line.replace('•','').strip()}")
 
+        # Default
+
         else:
+
             st.write("\n".join(content))
-
-                    if title == "🚀 Key Contributions":
-                        for line in content:
-                            if line.strip():
-                                st.markdown(f'<div class="tag">{line.replace("•","")}</div>', unsafe_allow_html=True)
-
-                    elif title == "📊 Results":
-                        for line in content:
-                            if line.strip():
-                                st.markdown(f'<div class="badge">{line.replace("•","")}</div>', unsafe_allow_html=True)
-
-                    else:
-                        st.write("\n".join(content))
 
             for line in sections:
 
