@@ -46,9 +46,7 @@ if uploaded_file:
 
     if st.button("Generate Summary"):
 
-        text = extract_text(pdf_path)
-
-        output = run_agent(text)
+        output = run_agent(pdf_path)
 
         sections = output.split("\n")
 
