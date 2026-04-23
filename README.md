@@ -46,5 +46,5 @@ See architecture diagram below:
 ---
 
 ## 👨‍💻 Author
-Safalya Mohod
+Safalya Mohod,
 Sharvari Kinkar 
