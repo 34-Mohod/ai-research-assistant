@@ -1,14 +1,11 @@
 import streamlit as st
 import tempfile
+import json
 import time
 import re
-import matplotlib.pyplot as plt
-
-# 👉 If this fails, comment it temporarily
 from modules.agent_controller import run_agent
 
-
-# ---------------- PAGE CONFIG ----------------
+# ---------------- CONFIG ----------------
 st.set_page_config(
     page_title="AI Research Assistant",
     layout="wide",
@@ -19,239 +16,218 @@ st.set_page_config(
 st.markdown("""
 <style>
 body {
-    background-color: #0f172a;
-    color: #e2e8f0;
-}
-
-.title {
-    font-size: 42px;
-    font-weight: 800;
-    text-align: center;
-    background: linear-gradient(90deg, #6366f1, #3b82f6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.subtitle {
-    text-align: center;
-    color: #94a3b8;
-    margin-bottom: 25px;
+    background-color: #0b1220;
+    color: #e5e7eb;
 }
 
 .metric-card {
-    background: #111827;
+    background: #0f1b2e;
     padding: 20px;
     border-radius: 14px;
-    border: 1px solid #1f2937;
+    border: 1px solid #1f2a44;
     text-align: center;
 }
 
-.section-card {
-    background: #111827;
-    padding: 20px;
-    border-radius: 14px;
-    border: 1px solid #1f2937;
+.section {
+    background: #0f1b2e;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #1f2a44;
     margin-bottom: 15px;
 }
 
-.stButton > button {
-    background: linear-gradient(90deg, #6366f1, #3b82f6);
-    color: white;
-    border-radius: 10px;
-    height: 45px;
-    border: none;
-    font-weight: 600;
+.title {
+    font-size: 38px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 10px;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- HEADER ----------------
 st.markdown('<div class="title">🧠 AI Research Assistant</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">RF • Antenna • THz • AI-powered Research Analysis</div>', unsafe_allow_html=True)
+
+# ---------------- STATE ----------------
+if "papers" not in st.session_state:
+    st.session_state["papers"] = []
+
+if "current_data" not in st.session_state:
+    st.session_state["current_data"] = None
 
 # ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader("📄 Upload Research Paper", type=["pdf"])
+uploaded_files = st.file_uploader(
+    "📄 Upload Research Papers",
+    type=["pdf"],
+    accept_multiple_files=True
+)
 
-# ---------------- SESSION ----------------
-if "output" not in st.session_state:
-    st.session_state.output = None
+# ---------------- SAFE PARSE ----------------
+def safe_json(output):
+    try:
+        return json.loads(output)
+    except:
+        return {
+            "title": "Parsing Failed",
+            "summary": output,
+            "contributions": [],
+            "methodology": "",
+            "results": "",
+            "metrics": {}
+        }
 
+# ---------------- METRIC EXTRACT (BACKUP) ----------------
+def extract_metrics(text):
+    gain = re.search(r"(\d+\.?\d*)\s*dBi", text)
+    s11 = re.search(r"-?\d+\.?\d*\s*dB", text)
+    bw = re.search(r"(\d+\.?\d*)\s*%", text)
 
-# ---------------- CLEAN FUNCTION ----------------
-def clean_line(line):
-    return line.replace("*", "").strip()
-
-
-# ---------------- PARSER ----------------
-def parse_output(output):
-
-    sections = {
-        "title": [],
-        "summary": [],
-        "contributions": [],
-        "methodology": [],
-        "results": []
+    return {
+        "gain": float(gain.group(1)) if gain else None,
+        "s11": float(s11.group(0).replace("dB","")) if s11 else None,
+        "bandwidth": float(bw.group(1)) if bw else None
     }
 
-    current = None
-
-    for raw in output.split("\n"):
-        line = clean_line(raw)
-
-        if not line:
-            continue
-
-        lower = line.lower()
-
-        if "title" in lower:
-            current = "title"
-            continue
-
-        elif "summary" in lower:
-            current = "summary"
-            continue
-
-        elif "key contributions" in lower:
-            current = "contributions"
-            continue
-
-        elif "methodology" in lower:
-            current = "methodology"
-            continue
-
-        elif "results" in lower:
-            current = "results"
-            continue
-
-        if current:
-            sections[current].append(line)
-
-    # remove garbage
-    for key in sections:
-        sections[key] = [l for l in sections[key] if l not in ["", ".", "**"]]
-
-    return sections
-
-
-# ---------------- METRIC EXTRACTOR ----------------
-def extract_metrics(text):
-    gain = None
-    s11 = None
-    bandwidth = None
-
-    gain_match = re.search(r'(\d+\.?\d*)\s*dBi', text)
-    s11_match = re.search(r'-\d+\.?\d*\s*dB', text)
-    bw_match = re.search(r'(\d+\.?\d*)\s*%', text)
-
-    if gain_match:
-        gain = float(gain_match.group(1))
-
-    if s11_match:
-        s11 = float(s11_match.group(0).replace(" dB", ""))
-
-    if bw_match:
-        bandwidth = float(bw_match.group(1))
-
-    return gain, s11, bandwidth
-
-
 # ---------------- PROCESS ----------------
-if uploaded_file:
+if uploaded_files:
+    for file in uploaded_files:
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        pdf_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(file.read())
+            path = tmp.name
 
-    st.success("File uploaded")
+        if st.button(f"🚀 Process {file.name}"):
 
-    if st.button("🚀 Generate"):
+            with st.spinner("Processing..."):
+                output = run_agent(path)
 
-        progress = st.progress(0)
-        for i in range(100):
-            time.sleep(0.01)
-            progress.progress(i + 1)
+            data = safe_json(output)
 
-        try:
-            output = run_agent(pdf_path)
-        except:
-            output = "ERROR: Agent not working"
+            # fallback metrics if missing
+            if not data.get("metrics"):
+                data["metrics"] = extract_metrics(output)
 
-        st.session_state.output = output
-        progress.empty()
+            st.session_state["current_data"] = data
 
+            st.session_state["papers"].append({
+                "name": file.name,
+                "data": data
+            })
 
-# ---------------- OUTPUT ----------------
-if st.session_state.output:
+# ---------------- TABS ----------------
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Analysis",
+    "📄 Raw",
+    "📈 Insights",
+    "⚖️ Comparison"
+])
 
-    output = st.session_state.output
+# ================= TAB 1 =================
+with tab1:
 
-    sections = parse_output(output)
-    gain, s11, bandwidth = extract_metrics(output)
+    data = st.session_state.get("current_data")
 
-    tab1, tab2, tab3 = st.tabs(["📊 Analysis", "🧾 Raw", "📈 Insights"])
+    if not data:
+        st.info("Upload and process a paper")
+    else:
 
-    # ================= TAB 1 =================
-    with tab1:
+        metrics = data.get("metrics", {})
 
-        # ---- METRICS ----
+        def safe(v, unit=""):
+            return f"{v} {unit}" if v else "N/A"
+
         col1, col2, col3 = st.columns(3)
 
-        col1.markdown(f'<div class="metric-card"><h3>Gain</h3><h2>{gain if gain else "N/A"} dBi</h2></div>', unsafe_allow_html=True)
-        col2.markdown(f'<div class="metric-card"><h3>S11</h3><h2>{s11 if s11 else "N/A"} dB</h2></div>', unsafe_allow_html=True)
-        col3.markdown(f'<div class="metric-card"><h3>Bandwidth</h3><h2>{bandwidth if bandwidth else "N/A"} %</h2></div>', unsafe_allow_html=True)
+        col1.markdown(f"<div class='metric-card'>Gain<br><h2>{safe(metrics.get('gain'),'dBi')}</h2></div>", unsafe_allow_html=True)
+        col2.markdown(f"<div class='metric-card'>S11<br><h2>{safe(metrics.get('s11'),'dB')}</h2></div>", unsafe_allow_html=True)
+        col3.markdown(f"<div class='metric-card'>Bandwidth<br><h2>{safe(metrics.get('bandwidth'),'%')}</h2></div>", unsafe_allow_html=True)
 
         st.markdown("---")
 
-        # ---- CONTENT ----
+        colA, colB = st.columns(2)
+
+        with colA:
+            st.markdown("### 🧠 Summary")
+            st.markdown(f"<div class='section'>{data.get('summary','')}</div>", unsafe_allow_html=True)
+
+        with colB:
+            st.markdown("### ⚙️ Methodology")
+            st.markdown(f"<div class='section'>{data.get('methodology','')}</div>", unsafe_allow_html=True)
+
+        st.markdown("### 🚀 Contributions")
+        for c in data.get("contributions", []):
+            st.write(f"✔ {c}")
+
+        st.markdown("### 📊 Results")
+        st.write(data.get("results",""))
+
+# ================= TAB 2 =================
+with tab2:
+    data = st.session_state.get("current_data")
+    if data:
+        st.code(json.dumps(data, indent=2))
+
+# ================= TAB 3 =================
+with tab3:
+
+    data = st.session_state.get("current_data")
+
+    if data:
+        text = str(data)
+
+        if "gain" in text.lower():
+            st.success("✔ Gain detected")
+
+        if "bandwidth" in text.lower():
+            st.info("✔ Bandwidth analyzed")
+
+        if "s11" in text.lower():
+            st.warning("✔ Reflection coefficient present")
+
+# ================= TAB 4 =================
+with tab4:
+
+    st.subheader("⚖️ Paper Comparison")
+
+    papers = st.session_state.get("papers", [])
+
+    if len(papers) < 2:
+        st.warning("Upload at least 2 papers")
+    else:
+
+        names = [p["name"] for p in papers]
+
+        p1_name = st.selectbox("Paper 1", names)
+        p2_name = st.selectbox("Paper 2", names)
+
+        p1 = next(p for p in papers if p["name"] == p1_name)
+        p2 = next(p for p in papers if p["name"] == p2_name)
+
+        m1 = p1["data"].get("metrics", {})
+        m2 = p2["data"].get("metrics", {})
+
+        def safe(v): return v if v else "N/A"
+
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("### 🧠 Summary")
-            st.markdown('<div class="section-card">' + " ".join(sections["summary"]) + '</div>', unsafe_allow_html=True)
-
-            st.markdown("### 🚀 Contributions")
-            st.markdown('<div class="section-card">' + " ".join(sections["contributions"]) + '</div>', unsafe_allow_html=True)
+            st.markdown(f"### 📄 {p1_name}")
+            st.metric("Gain", safe(m1.get("gain")))
+            st.metric("S11", safe(m1.get("s11")))
+            st.metric("Bandwidth", safe(m1.get("bandwidth")))
 
         with col2:
-            st.markdown("### ⚙️ Methodology")
-            st.markdown('<div class="section-card">' + " ".join(sections["methodology"]) + '</div>', unsafe_allow_html=True)
+            st.markdown(f"### 📄 {p2_name}")
+            st.metric("Gain", safe(m2.get("gain")))
+            st.metric("S11", safe(m2.get("s11")))
+            st.metric("Bandwidth", safe(m2.get("bandwidth")))
 
-            st.markdown("### 📊 Results")
-            st.markdown('<div class="section-card">' + " ".join(sections["results"]) + '</div>', unsafe_allow_html=True)
+        st.markdown("### 🏆 Winner")
 
-        st.markdown("---")
+        def cmp(a, b): return "Paper 1" if a and b and a > b else "Paper 2"
+        def cmp_s11(a, b): return "Paper 1" if a and b and a < b else "Paper 2"
 
-        # ---- CHART ----
-        if gain and bandwidth:
-            st.subheader("📈 Performance Chart")
-
-            fig, ax = plt.subplots()
-            ax.bar(["Gain", "Bandwidth"], [gain, bandwidth])
-            st.pyplot(fig)
-
-        # ---- SCORE ----
-        if gain:
-            score = min(100, int(gain * 8))
-            st.subheader("🏆 Score")
-            st.progress(score / 100)
-            st.success(f"{score}/100")
-
-    # ================= TAB 2 =================
-    with tab2:
-        st.code(output)
-
-    # ================= TAB 3 =================
-    with tab3:
-
-        st.subheader("📈 Insights")
-
-        if gain and gain > 10:
-            st.success("High gain antenna detected")
-
-        if s11 and s11 < -10:
-            st.info("Good impedance matching")
-
-        if bandwidth and bandwidth > 30:
-            st.warning("Wide bandwidth design")
-
-        st.write("✔ RF Analysis Complete")
+        st.write("Gain:", cmp(m1.get("gain"), m2.get("gain")))
+        st.write("Bandwidth:", cmp(m1.get("bandwidth"), m2.get("bandwidth")))
+        st.write("S11:", cmp_s11(m1.get("s11"), m2.get("s11")))
