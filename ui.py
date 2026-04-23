@@ -113,11 +113,24 @@ if st.session_state["result"]:
 
     # 🔥 AGENT VISUAL (NEW)
     st.markdown("""
-    ### 🧠 Agent Workflow
-    1. **Perception Module** → Extract PDF text  
-    2. **Reasoning Module** → LLM analysis  
-    3. **Action Module** → Structured output  
-    """)
+### 🤖 Multi-Agent System
+
+**Coordinator Agent**
+- Orchestrates the full pipeline  
+
+**Research Agent**
+- Performs RF paper analysis using LLM  
+
+**Critic Agent**
+- Validates and checks output quality  
+
+**Formatter Agent**
+- Structures final response  
+
+---
+Pipeline:
+PDF → Coordinator → Research → Critic → Formatter → Output
+""")
 
     tab1, tab2, tab3 = st.tabs(["📊 Structured", "🧾 Raw Output", "📈 Insights"])
 
