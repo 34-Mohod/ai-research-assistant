@@ -134,12 +134,15 @@ if uploaded_file:
             st.markdown('<div class="card">', unsafe_allow_html=True)
 
             sections = output.split("\n")
-            current = None
+            current = "📄 Section"
             buffer = []
 
             def render(title, content):
+    # FIX: prevent empty title crash
+    if not title or not title.strip():
+        title = "📄 Section"
 
-                with st.expander(title, expanded=True):
+    with st.expander(title, expanded=True):
 
                     if title == "🚀 Key Contributions":
                         for line in content:
