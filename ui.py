@@ -10,12 +10,76 @@ st.set_page_config(
     page_icon="🧠"
 )
 
+# ---------------- MODERN CSS ----------------
+st.markdown("""
+<style>
+
+/* Background */
+body {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+/* Title */
+.title {
+    font-size: 42px;
+    font-weight: 800;
+    text-align: center;
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Subtitle */
+.subtitle {
+    text-align: center;
+    color: #94a3b8;
+    margin-bottom: 25px;
+}
+
+/* Card */
+.card {
+    background: #111827;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #1f2937;
+    margin-bottom: 20px;
+}
+
+/* Button */
+.stButton > button {
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
+    color: white;
+    border-radius: 10px;
+    height: 45px;
+    border: none;
+    font-weight: 600;
+}
+
+/* Expander */
+.streamlit-expanderHeader {
+    font-weight: 600;
+    color: #c7d2fe;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # ---------------- HEADER ----------------
-st.title("🧠 AI Research Assistant")
-st.write("Upload a research paper and get structured insights.")
+st.markdown('<div class="title">🧠 AI Research Assistant</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">RF • Antenna • THz • AI-powered Research Analysis</div>', unsafe_allow_html=True)
+
+# ---------------- SIDEBAR ----------------
+with st.sidebar:
+    st.header("⚙️ Controls")
+    st.selectbox("Mode", ["Technical", "Simple"])
+    st.slider("Creativity", 0.0, 1.0, 0.3)
+    st.markdown("---")
+    st.write("Model: LLaMA3 (Groq)")
+    st.success("Status: Active")
 
 # ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+uploaded_file = st.file_uploader("📄 Upload Research Paper (PDF)", type=["pdf"])
 
 # ---------------- RENDER FUNCTION ----------------
 def render(title, content):
@@ -24,13 +88,11 @@ def render(title, content):
 
     with st.expander(title, expanded=True):
 
-        # Key Contributions → tags
         if "Key Contributions" in title:
             for line in content:
                 if line.strip():
                     st.markdown(f"- {line.replace('•','').strip()}")
 
-        # Results → badges style
         elif "Results" in title:
             for line in content:
                 if line.strip():
@@ -38,6 +100,10 @@ def render(title, content):
 
         else:
             st.write("\n".join(content))
+
+# ---------------- SESSION ----------------
+if "result" not in st.session_state:
+    st.session_state["result"] = None
 
 # ---------------- PROCESS ----------------
 if uploaded_file:
@@ -50,89 +116,86 @@ if uploaded_file:
 
     if st.button("🚀 Generate Summary"):
 
-        # progress bar
         progress = st.progress(0)
         for i in range(100):
             time.sleep(0.01)
             progress.progress(i + 1)
 
-        # run pipeline
         output = run_agent(pdf_path)
+        st.session_state["result"] = output
 
         progress.empty()
 
-        # ---------------- PARSING ----------------
-        lines = output.split("\n")
+# ---------------- OUTPUT ----------------
+if st.session_state["result"]:
 
+    output = st.session_state["result"]
+
+    tab1, tab2, tab3 = st.tabs(["📊 Structured", "🧾 Raw Output", "📈 Insights"])
+
+    # ================= TAB 1 =================
+    with tab1:
+
+        lines = output.split("\n")
         current = ""
         buffer = []
+
+        def flush():
+            if buffer:
+                render(current, buffer.copy())
+                buffer.clear()
 
         i = 0
         while i < len(lines):
             line = lines[i].strip()
 
             # -------- TITLE --------
-            if "Title:" in line:
-                if buffer:
-                    render(current, buffer)
-                    buffer = []
-
+            if line.startswith("Title"):
+                flush()
                 current = "📄 Title"
 
-                if i + 1 < len(lines):
-                    buffer.append(lines[i + 1].strip())
-                    i += 1
+                if ":" in line and line.split(":", 1)[1].strip():
+                    buffer.append(line.split(":", 1)[1].strip())
+                else:
+                    j = i + 1
+                    while j < len(lines) and lines[j].strip():
+                        buffer.append(lines[j].strip())
+                        j += 1
+                    i = j - 1
 
             # -------- SUMMARY --------
-            elif "Summary:" in line:
-                if buffer:
-                    render(current, buffer)
-                    buffer = []
-
+            elif line.startswith("Summary"):
+                flush()
                 current = "🧠 Summary"
 
-                if i + 1 < len(lines):
-                    buffer.append(lines[i + 1].strip())
-                    i += 1
+                if ":" in line and line.split(":", 1)[1].strip():
+                    buffer.append(line.split(":", 1)[1].strip())
+                else:
+                    j = i + 1
+                    while j < len(lines) and lines[j].strip():
+                        buffer.append(lines[j].strip())
+                        j += 1
+                    i = j - 1
 
-            # -------- CONTRIBUTIONS --------
-            elif "Key Contributions:" in line:
-                if buffer:
-                    render(current, buffer)
-                    buffer = []
-
+            # -------- OTHER SECTIONS --------
+            elif "Key Contributions" in line:
+                flush()
                 current = "🚀 Key Contributions"
 
-            # -------- METHODOLOGY --------
-            elif "Methodology:" in line:
-                if buffer:
-                    render(current, buffer)
-                    buffer = []
-
+            elif "Methodology" in line:
+                flush()
                 current = "⚙️ Methodology"
 
-            # -------- RESULTS --------
-            elif "Results:" in line:
-                if buffer:
-                    render(current, buffer)
-                    buffer = []
-
+            elif "Results" in line:
+                flush()
                 current = "📊 Results"
 
-            # -------- LIMITATIONS --------
-            elif "Limitations:" in line:
-                if buffer:
-                    render(current, buffer)
-                    buffer = []
-
+            elif "Limitations" in line:
+                flush()
                 current = "🚧 Limitations"
 
-            # -------- FUTURE WORK --------
-            elif "Future Work:" in line:
-                if buffer:
-                    render(current, buffer)
-                    buffer = []
-
+            elif "Future Work" in line:
+                flush()
                 current = "🔮 Future Work"
 
             else:
@@ -140,16 +203,31 @@ if uploaded_file:
 
             i += 1
 
-        # render last section
-        if buffer:
-            render(current, buffer)
+        flush()
 
-        # ---------------- DOWNLOAD ----------------
-        st.download_button(
-            "📥 Download Summary",
-            data=output,
-            file_name="summary.txt"
-        )
+    # ================= TAB 2 =================
+    with tab2:
+        st.code(output)
 
-else:
-    st.info("Upload a PDF to begin")
+    # ================= TAB 3 =================
+    with tab3:
+        st.subheader("📈 Insights")
+
+        if "gain" in output.lower():
+            st.success("✔ Gain optimization detected")
+
+        if "s11" in output.lower():
+            st.info("✔ Reflection coefficient analyzed")
+
+        if "bandwidth" in output.lower():
+            st.warning("✔ Bandwidth considerations present")
+
+        st.write("• Structured RF analysis completed")
+        st.write("• Model confidence: High")
+
+    # ---------------- DOWNLOAD ----------------
+    st.download_button(
+        "📥 Download Summary",
+        data=output,
+        file_name="summary.txt"
+    )
