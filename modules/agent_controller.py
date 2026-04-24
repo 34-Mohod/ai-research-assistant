@@ -1,67 +1,63 @@
-from modules.pdf_extractor import extract_text
-from modules.llm_engine import summarize_text
+import json
+from groq import Groq
 
+client = Groq(api_key="YOUR_API_KEY")
 
-# ---------------- AGENT 1 ----------------
-class ResearchAgent:
-    def run(self, text):
-        return summarize_text(text)
+def run_agent(pdf_path):
+    try:
+        prompt = """
+        Extract research paper info STRICTLY in JSON:
 
+        {
+          "title": "...",
+          "summary": "...",
+          "contributions": [],
+          "methodology": "...",
+          "results": "...",
+          "metrics": {
+            "gain": number,
+            "s11": number,
+            "bandwidth": number
+          }
+        }
 
-# ---------------- AGENT 2 ----------------
-class CriticAgent:
-    def review(self, data):
-        try:
-            # already dict (IMPORTANT)
-            if "error" in data:
-                return data
+        RULES:
+        - Only JSON
+        - Double quotes
+        - No explanation
+        """
 
-            if not data.get("summary"):
-                data["summary"] = "Summary not generated"
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",  # ✅ stable model  [oai_citation:0‡console.groq.com](https://console.groq.com/docs/models?utm_source=chatgpt.com)
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
 
-            if not data.get("metrics"):
-                data["metrics"] = {
-                    "gain": None,
-                    "s11": None,
-                    "bandwidth": None
-                }
+        content = response.choices[0].message.content.strip()
 
-            return data
+        # 🔥 Force JSON safe
+        content = content.replace("'", '"')
 
-        except Exception as e:
-            return {
-                "error": "Processing failed",
-                "details": str(e)
-            }
+        data = json.loads(content)
 
+        # 🔥 GUARANTEE structure
+        return {
+            "title": data.get("title", ""),
+            "summary": data.get("summary", ""),
+            "contributions": data.get("contributions", []),
+            "methodology": data.get("methodology", ""),
+            "results": data.get("results", ""),
+            "metrics": data.get("metrics", {})
+        }
 
-# ---------------- AGENT 3 ----------------
-class FormatterAgent:
-    def format(self, data):
-        return data
+    except Exception as e:
+        print("Agent error:", e)
 
-
-# ---------------- COORDINATOR ----------------
-class CoordinatorAgent:
-    def __init__(self):
-        self.research = ResearchAgent()
-        self.critic = CriticAgent()
-        self.formatter = FormatterAgent()
-
-    def run(self, file_path):
-        text = extract_text(file_path)
-
-        if not text or len(text.strip()) < 50:
-            return {"error": "Empty or unreadable PDF"}
-
-        response = self.research.run(text)
-        response = self.critic.review(response)
-        response = self.formatter.format(response)
-
-        return response
-
-
-# ---------------- ENTRY FUNCTION ----------------
-def run_agent(file_path):
-    agent = CoordinatorAgent()
-    return agent.run(file_path)
+        return {
+            "title": "Error",
+            "summary": "",
+            "contributions": [],
+            "methodology": "",
+            "results": "",
+            "metrics": {}
+        }
