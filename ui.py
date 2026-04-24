@@ -1,3 +1,4 @@
+
 import streamlit as st
 import tempfile
 import json
@@ -108,7 +109,7 @@ if uploaded_files:
             with st.spinner("Processing..."):
                 output = run_agent(path)
 
-            data = safe_json(output)
+            data["metrics"] = extract_metrics(data)
 
             # fallback metrics if missing
             if not data.get("metrics"):
