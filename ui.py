@@ -1,155 +1,200 @@
 import streamlit as st
 import tempfile
 import json
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 from modules.agent_controller import run_agent
 
-# ---------------- CONFIG ----------------
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="AI Research Assistant",
     layout="wide",
     page_icon="🧠"
 )
 
-# ---------------- CSS ----------------
-st.markdown("""
-<style>
-body {
-    background-color: #0b1220;
-    color: #e5e7eb;
-}
-.metric-card {
-    background: #0f1b2e;
-    padding: 20px;
-    border-radius: 14px;
-    border: 1px solid #1f2a44;
-    text-align: center;
-}
-.section {
-    background: #0f1b2e;
-    padding: 18px;
-    border-radius: 12px;
-    border: 1px solid #1f2a44;
-    margin-bottom: 15px;
-}
-.title {
-    font-size: 38px;
-    font-weight: 800;
-    text-align: center;
-    margin-bottom: 10px;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # ---------------- HEADER ----------------
-st.markdown('<div class="title">🧠 AI Research Assistant</div>', unsafe_allow_html=True)
+st.markdown(
+    "<h1 style='text-align:center;'>🧠 AI Research Assistant Dashboard</h1>",
+    unsafe_allow_html=True
+)
 
-# ---------------- STATE ----------------
-if "current_data" not in st.session_state:
-    st.session_state["current_data"] = None
+# ---------------- SESSION ----------------
+if "papers" not in st.session_state:
+    st.session_state["papers"] = []
 
-# ---------------- FILE UPLOAD ----------------
+# ---------------- JSON PARSER ----------------
+def parse_output(output):
+    try:
+        data = json.loads(output)
+
+        # 🔥 FULL FLATTENING
+        if isinstance(data.get("summary"), dict):
+            inner = data["summary"]
+            return {
+                "title": inner.get("title", ""),
+                "summary": inner.get("summary", ""),
+                "methodology": inner.get("methodology", ""),
+                "contributions": inner.get("contributions", []),
+                "results": inner.get("results", ""),
+                "metrics": inner.get("metrics", {})
+            }
+
+        return data
+
+    except:
+        return {
+            "title": "Error",
+            "summary": str(output),
+            "metrics": {}
+        }
+
+# ---------------- UPLOAD ----------------
 uploaded_files = st.file_uploader(
     "📄 Upload Research Papers",
     type=["pdf"],
     accept_multiple_files=True
 )
 
-# ---------------- SAFE PARSE ----------------
-def safe_json(output):
-    try:
-        return json.loads(output)
-    except:
-        return {
-            "title": "Parsing Failed",
-            "summary": str(output),
-            "contributions": [],
-            "methodology": "",
-            "results": "",
-            "metrics": {}
-        }
-
-# ---------------- PROCESS ----------------
 if uploaded_files:
     for file in uploaded_files:
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            tmp.write(file.read())
-            path = tmp.name
-
         if st.button(f"🚀 Process {file.name}"):
 
-            with st.spinner("Processing..."):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(file.read())
+                path = tmp.name
+
+            with st.spinner("Analyzing paper..."):
                 output = run_agent(path)
 
-            data = safe_json(output)
+            data = parse_output(output)
+            data["name"] = file.name
 
-            # ✅ FIX: Flatten nested JSON (CRITICAL FIX)
-            if isinstance(data.get("summary"), dict):
-                inner = data["summary"]
+            st.session_state["papers"].append(data)
 
-                data["summary"] = inner.get("summary", "")
-                data["methodology"] = inner.get("methodology", "")
-                data["contributions"] = inner.get("contributions", [])
-                data["results"] = inner.get("results", "")
-                data["metrics"] = inner.get("metrics", {})
+# ---------------- TABS ----------------
+tab1, tab2, tab3 = st.tabs([
+    "📊 Analysis",
+    "📄 Raw Output",
+    "⚖️ Comparison"
+])
 
-            st.session_state["current_data"] = data
+# ================= TAB 1 =================
+with tab1:
 
-# ---------------- DISPLAY ----------------
-data = st.session_state.get("current_data")
+    if st.session_state["papers"]:
 
-if data:
+        data = st.session_state["papers"][-1]
+        metrics = data.get("metrics", {})
 
-    metrics = data.get("metrics", {})
+        # -------- METRICS --------
+        col1, col2, col3 = st.columns(3)
 
-    def safe(v, unit=""):
-        return f"{v}{unit}" if v is not None else "N/A"
+        col1.metric("Gain (dBi)", metrics.get("gain", "N/A"))
+        col2.metric("S11 (dB)", metrics.get("s11", "N/A"))
+        col3.metric("Bandwidth (%)", metrics.get("bandwidth", "N/A"))
 
-    col1, col2, col3 = st.columns(3)
+        st.divider()
 
-    col1.markdown(
-        f"<div class='metric-card'>Gain<br><h2>{safe(metrics.get('gain'), ' dBi')}</h2></div>",
-        unsafe_allow_html=True
-    )
+        # -------- TEXT SECTIONS --------
+        colA, colB = st.columns(2)
 
-    col2.markdown(
-        f"<div class='metric-card'>S11<br><h2>{safe(metrics.get('s11'), ' dB')}</h2></div>",
-        unsafe_allow_html=True
-    )
+        with colA:
+            st.subheader("🧠 Summary")
+            st.write(data.get("summary", ""))
 
-    col3.markdown(
-        f"<div class='metric-card'>Bandwidth<br><h2>{safe(metrics.get('bandwidth'), ' %')}</h2></div>",
-        unsafe_allow_html=True
-    )
+        with colB:
+            st.subheader("⚙️ Methodology")
+            st.write(data.get("methodology", ""))
 
-    st.markdown("---")
+        st.subheader("🚀 Contributions")
+        for c in data.get("contributions", []):
+            st.write(f"• {c}")
 
-    colA, colB = st.columns(2)
+        st.subheader("📊 Results")
+        st.write(data.get("results", ""))
 
-    with colA:
-        st.markdown("### 🧠 Summary")
-        st.markdown(
-            f"<div class='section'>{data.get('summary','')}</div>",
-            unsafe_allow_html=True
+        # -------- RADAR CHART --------
+        if metrics:
+
+            radar_df = pd.DataFrame({
+                "Metric": ["Gain", "S11", "Bandwidth"],
+                "Value": [
+                    metrics.get("gain", 0),
+                    abs(metrics.get("s11", 0)),
+                    metrics.get("bandwidth", 0)
+                ]
+            })
+
+            fig = px.line_polar(
+                radar_df,
+                r="Value",
+                theta="Metric",
+                line_close=True
+            )
+
+            fig.update_traces(fill="toself")
+
+            st.subheader("📡 Performance Radar")
+            st.plotly_chart(fig, use_container_width=True)
+
+# ================= TAB 2 =================
+with tab2:
+
+    for paper in st.session_state["papers"]:
+        st.subheader(paper["name"])
+        st.code(json.dumps(paper, indent=2))
+
+# ================= TAB 3 =================
+with tab3:
+
+    if len(st.session_state["papers"]) > 1:
+
+        df = pd.DataFrame([
+            {
+                "Paper": p["name"],
+                "Gain": p["metrics"].get("gain"),
+                "S11": p["metrics"].get("s11"),
+                "Bandwidth": p["metrics"].get("bandwidth")
+            }
+            for p in st.session_state["papers"]
+        ])
+
+        st.subheader("📊 Comparison Table")
+        st.dataframe(df)
+
+        # -------- BAR CHART --------
+        fig_bar = px.bar(
+            df,
+            x="Paper",
+            y=["Gain", "Bandwidth"],
+            barmode="group"
         )
 
-    with colB:
-        st.markdown("### ⚙️ Methodology")
-        st.markdown(
-            f"<div class='section'>{data.get('methodology','')}</div>",
-            unsafe_allow_html=True
-        )
+        st.plotly_chart(fig_bar)
 
-    st.markdown("### 🚀 Contributions")
-    for c in data.get("contributions", []):
-        st.write(f"- {c}")
+        # -------- MULTI RADAR --------
+        fig = go.Figure()
 
-    st.markdown("### 📊 Results")
-    st.write(data.get("results", ""))
+        for p in st.session_state["papers"]:
+            m = p["metrics"]
 
-# ---------------- RAW OUTPUT ----------------
-st.markdown("---")
-st.markdown("## Raw Output")
+            fig.add_trace(go.Scatterpolar(
+                r=[
+                    m.get("gain", 0),
+                    abs(m.get("s11", 0)),
+                    m.get("bandwidth", 0)
+                ],
+                theta=["Gain", "S11", "Bandwidth"],
+                fill='toself',
+                name=p["name"]
+            ))
 
-if data:
-    st.code(json.dumps(data, indent=2))
+        fig.update_layout(polar=dict(radialaxis=dict(visible=True)))
+
+        st.subheader("📡 Radar Comparison")
+        st.plotly_chart(fig)
+
+    else:
+        st.info("Upload at least 2 papers for comparison")
