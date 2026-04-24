@@ -2,7 +2,8 @@ import json
 import re
 from groq import Groq
 
-client = Groq()
+import os
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def run_agent(text):
     try:
