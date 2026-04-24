@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from modules.agent_controller import run_agent
+from modules.judge_agent import judge_papers   # ✅ ADDED
 import PyPDF2
 
 st.set_page_config(layout="wide")
@@ -283,3 +284,17 @@ if results:
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
+            # -------- JUDGE (ADDED) --------
+            st.markdown("---")
+            st.subheader("🧠 AI Judge Verdict")
+
+            if st.button("⚖️ Evaluate Papers"):
+
+                with st.spinner("AI is evaluating..."):
+                    verdict = judge_papers(results)
+
+                st.success(f"🏆 Winner: {verdict['winner']}")
+                st.markdown(f"**Reason:** {verdict['reason']}")
+                st.markdown("### 📊 Scores")
+                st.json(verdict["scorecard"])
