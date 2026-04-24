@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from modules.agent_controller import run_agent
+from modules.judge_agent import run_judge   # ✅ ADDED
 import PyPDF2
 
 st.set_page_config(layout="wide")
@@ -78,10 +79,24 @@ if uploaded_files:
         with st.spinner("Analyzing paper..."):
             for file in uploaded_files:
                 text = extract_text_from_pdf(file)
+
                 data = run_agent(text)
 
                 if isinstance(data, dict) and "metrics" in data:
+
+                    # ✅ 🔥 JUDGE ADDED HERE
+                    try:
+                        judge = run_judge(data)
+                        data["judge"] = judge
+                    except:
+                        data["judge"] = {
+                            "score": {"accuracy": 0, "completeness": 0, "clarity": 0, "usefulness": 0, "total": 0},
+                            "verdict": "Error",
+                            "feedback": "Judge failed"
+                        }
+
                     st.session_state.results.append(data)
+
                 else:
                     st.warning("Skipped invalid response")
 
@@ -92,11 +107,12 @@ if st.session_state.results:
 
     data = st.session_state.results[-1]
     metrics = data["metrics"]
+    judge = data.get("judge", {})   # ✅ ADDED
 
     # ---------------- ANALYSIS ----------------
     with tab1:
 
-        # ✅ NEW: Title
+        # Title
         st.markdown(f"""
         <div class="section">
             <h3>📄 Title</h3>
@@ -110,7 +126,7 @@ if st.session_state.results:
         col2.metric("S11 (dB)", metrics["s11"])
         col3.metric("Bandwidth (MHz)", metrics["bandwidth"])
 
-        # ✅ NEW: Progress bars
+        # Progress
         st.markdown("### 📊 Performance Breakdown")
         st.progress(min(max(metrics["gain"]/20, 0), 1))
         st.caption("Gain Quality")
@@ -121,6 +137,7 @@ if st.session_state.results:
         st.progress(min(max(metrics["bandwidth"]/100, 0), 1))
         st.caption("Bandwidth Strength")
 
+        # Summary
         st.markdown(f"""
         <div class="section">
             <h3>🧾 Summary</h3>
@@ -128,6 +145,7 @@ if st.session_state.results:
         </div>
         """, unsafe_allow_html=True)
 
+        # Methodology
         st.markdown(f"""
         <div class="section">
             <h3>⚙️ Methodology</h3>
@@ -135,11 +153,13 @@ if st.session_state.results:
         </div>
         """, unsafe_allow_html=True)
 
+        # Contributions
         st.markdown("<div class='section'><h3>🚀 Contributions</h3>", unsafe_allow_html=True)
         for c in data["contributions"]:
             st.markdown(f"- {c}")
         st.markdown("</div>", unsafe_allow_html=True)
 
+        # Results
         st.markdown(f"""
         <div class="section">
             <h3>📊 Results</h3>
@@ -147,7 +167,7 @@ if st.session_state.results:
         </div>
         """, unsafe_allow_html=True)
 
-        # ✅ NEW: Applications
+        # Applications
         st.markdown("<div class='section'><h3>📌 Applications</h3></div>", unsafe_allow_html=True)
         if data.get("applications"):
             for app in data["applications"].split("."):
@@ -156,7 +176,7 @@ if st.session_state.results:
         else:
             st.info("No applications extracted")
 
-        # ✅ NEW: Limitations
+        # Limitations
         st.markdown("<div class='section'><h3>⚠️ Limitations</h3></div>", unsafe_allow_html=True)
         if data.get("limitations"):
             for lim in data["limitations"].split("."):
@@ -165,7 +185,7 @@ if st.session_state.results:
         else:
             st.info("No limitations found")
 
-        # ✅ NEW: Future Work
+        # Future Work
         st.markdown("<div class='section'><h3>🔮 Future Work</h3></div>", unsafe_allow_html=True)
         if data.get("future_work"):
             for fw in data["future_work"].split("."):
@@ -173,6 +193,31 @@ if st.session_state.results:
                     st.markdown(f"• {fw.strip()}")
         else:
             st.info("No future work identified")
+
+        # ✅ 🔥 JUDGE UI ADDED
+        if judge:
+            st.markdown("### 🧠 AI Evaluation (LLM-as-Judge)")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            col1.metric("Accuracy", judge["score"]["accuracy"])
+            col2.metric("Completeness", judge["score"]["completeness"])
+            col3.metric("Clarity", judge["score"]["clarity"])
+            col4.metric("Usefulness", judge["score"]["usefulness"])
+
+            st.markdown(f"""
+            <div class="section">
+                <h3>🏁 Verdict</h3>
+                <p>{judge.get("verdict","")}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div class="section">
+                <h3>📝 Feedback</h3>
+                <p>{judge.get("feedback","")}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
         # Radar chart
         df = pd.DataFrame(dict(
@@ -214,7 +259,6 @@ if st.session_state.results:
             st.subheader("📊 Comparison Table")
             st.dataframe(df, use_container_width=True)
 
-            # ✅ NEW: Ranking
             st.subheader("🏆 Ranking (Higher Gain)")
             df_sorted = df.sort_values(by="Gain", ascending=False)
             st.dataframe(df_sorted, use_container_width=True)

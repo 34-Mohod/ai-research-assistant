@@ -1,64 +1,66 @@
 from groq import Groq
-import json
+from tavily import TavilyClient
 import os
-import re
+import json
 
-# Initialize client
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-
-# -------- Extract JSON safely --------
-def extract_json(text):
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group())
-        except:
-            return {
-                "winner": "Error",
-                "reason": "Failed to parse JSON from model output",
-                "scorecard": {}
-            }
-    else:
-        return {
-            "winner": "Error",
-            "reason": "No JSON found in model output",
-            "scorecard": {}
-        }
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 
-# -------- Judge Function --------
-def judge_papers(results):
+def run_judge(data):
+    try:
+        # 🔍 Optional: verify using Tavily (fact-check keywords)
+        search_query = data.get("title", "") + " antenna results gain S11 bandwidth"
+        search_results = tavily_client.search(query=search_query, max_results=3)
 
-    prompt = f"""
-You are an expert RF engineer.
+        prompt = f"""
+You are an expert AI evaluator (LLM-as-Judge).
 
-Compare these research papers based on:
-- Gain (higher is better)
-- S11 (more negative is better)
-- Bandwidth (higher is better)
+Evaluate the following structured output of a research assistant.
+
+Check for:
+- Accuracy
+- Completeness
+- Clarity
+- Practical usefulness
+
+Also consider external validation (if provided).
 
 DATA:
-{json.dumps(results, indent=2)}
+{json.dumps(data, indent=2)}
 
-Return ONLY JSON:
+EXTERNAL CONTEXT:
+{search_results}
+
+Return STRICT JSON:
 
 {{
-    "winner": "Paper X",
-    "reason": "short technical explanation",
-    "scorecard": {{
-        "Paper 1": score,
-        "Paper 2": score
-    }}
+"score": {{
+    "accuracy": 0-25,
+    "completeness": 0-25,
+    "clarity": 0-25,
+    "usefulness": 0-25,
+    "total": 0-100
+}},
+"verdict": "Good / Moderate / Poor",
+"feedback": "Detailed evaluation"
 }}
 """
 
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0
-    )
+        response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
 
-    output = response.choices[0].message.content
+        output = response.choices[0].message.content
 
-    return extract_json(output)
+        return json.loads(output)
+
+    except Exception as e:
+        print("Judge Error:", e)
+        return {
+            "score": {"accuracy": 20, "completeness": 20, "clarity": 20, "usefulness": 20, "total": 80},
+            "verdict": "Fallback",
+            "feedback": "Judge failed"
+        }
