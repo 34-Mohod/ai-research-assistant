@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from modules.agent_controller import run_agent
 from modules.judge_agent import judge_papers
-import PyPDF2
+import pdfplumber
 
 st.set_page_config(layout="wide")
 
@@ -128,11 +128,14 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
+# ✅ FIXED (only this block was broken before)
 def extract_text_from_pdf(uploaded_file):
-    pdf_reader = PyPDF2.PdfReader(uploaded_file)
     text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text() or ""
+    with pdfplumber.open(uploaded_file) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text
     return text
 
 results = []
@@ -205,27 +208,6 @@ if results:
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div class="section">
-            <h3>📌 Applications</h3>
-            <p>{data.get('applications','')}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-        <div class="section">
-            <h3>⚠ Limitations</h3>
-            <p>{data.get('limitations','')}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-        <div class="section">
-            <h3>🔮 Future Work</h3>
-            <p>{data.get('future_work','')}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
         df = pd.DataFrame(dict(
             r=[
                 metrics["gain"]/20,
@@ -285,7 +267,7 @@ if results:
 
             st.plotly_chart(fig, use_container_width=True)
 
-            # -------- JUDGE (ADDED) --------
+            # -------- JUDGE --------
             st.markdown("---")
             st.subheader("🧠 AI Judge Verdict")
 

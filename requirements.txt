@@ -3,4 +3,4 @@ pandas
 plotly
 PyPDF2
 groq
-
+pdfplumber
