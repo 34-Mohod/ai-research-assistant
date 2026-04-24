@@ -145,12 +145,11 @@ if uploaded_files:
                 results.append(data)
 
 # ---------------- DISPLAY ----------------
+tab1, tab2, tab3 = st.tabs(["Analysis", "Raw Data", "Comparison"])
+
 if results:
     data = results[-1]
     metrics = data["metrics"]
-
-    tab1, tab2, tab3 = st.tabs(["Analysis", "Raw Data", "Comparison"])
-
     # ---------------- ANALYSIS ----------------
     with tab1:
         col1, col2, col3 = st.columns(3)
