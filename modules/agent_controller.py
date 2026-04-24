@@ -56,12 +56,10 @@ Paper:
             max_tokens=1200
         )
 
-        # ✅ CORRECT INDENTATION
         output = response.choices[0].message.content
-
         print("\n📦 RAW OUTPUT:\n", output)
 
-        # ✅ JSON extraction
+        # ✅ KEEP THIS INSIDE TRY
         match = re.search(r"\{.*\}", output, re.DOTALL)
 
         if not match:
@@ -69,11 +67,8 @@ Paper:
 
         json_str = match.group(0)
 
-        # Clean JSON
         json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
         json_str = json_str.replace("\n", " ")
-
-        # Fix common LLM mistakes
         json_str = re.sub(r",\s*}", "}", json_str)
         json_str = re.sub(r",\s*]", "]", json_str)
 
