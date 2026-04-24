@@ -291,10 +291,15 @@ if results:
 
             if st.button("⚖️ Evaluate Papers"):
 
-                with st.spinner("AI is evaluating..."):
-                    verdict = judge_papers(results)
+                try:
+                    with st.spinner("AI is evaluating..."):
+                        verdict = judge_papers(results)
 
-                st.success(f"🏆 Winner: {verdict['winner']}")
-                st.markdown(f"**Reason:** {verdict['reason']}")
-                st.markdown("### 📊 Scores")
-                st.json(verdict["scorecard"])
+                    st.success(f"🏆 Winner: {verdict['winner']}")
+                    st.markdown(f"**Reason:** {verdict['reason']}")
+                    st.markdown("### 📊 Scores")
+                    st.json(verdict["scorecard"])
+
+                except Exception as e:
+                    st.error("Judge failed")
+                    st.exception(e)    
