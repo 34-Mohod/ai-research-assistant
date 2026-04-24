@@ -6,7 +6,7 @@ import streamlit.components.v1 as components
 
 st.set_page_config(layout="wide")
 
-# ---------------- BACKGROUND ANIMATION ----------------
+# ---------------- BACKGROUND ----------------
 components.html("""
 <canvas id="bg"></canvas>
 <script>
@@ -26,7 +26,7 @@ resize();
 window.addEventListener("resize", resize);
 
 let particles = [];
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 35; i++) {
     particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
@@ -48,7 +48,7 @@ function draw() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0,0,0,0.06)";
+        ctx.fillStyle = "rgba(0,0,0,0.05)";
         ctx.fill();
     });
 
@@ -61,6 +61,7 @@ draw();
 # ---------------- CSS ----------------
 st.markdown("""
 <style>
+
 html, body {
     background-color: #FAFAFA;
     font-family: Inter, system-ui;
@@ -74,12 +75,11 @@ html, body {
 /* HERO */
 .hero {
     text-align: center;
-    padding: 50px 0;
-    animation: fadeUp 0.6s ease;
+    padding: 60px 0 30px 0;
 }
 
 .hero h1 {
-    font-size: 42px;
+    font-size: 40px;
     color: #111827;
 }
 
@@ -90,7 +90,7 @@ html, body {
 /* BUTTON */
 .stButton>button {
     border-radius: 999px;
-    padding: 10px 20px;
+    padding: 10px 22px;
     background: #111827;
     color: white;
     border: none;
@@ -106,55 +106,66 @@ html, body {
     background: white;
     border: 2px dashed #E5E7EB;
     border-radius: 16px;
-    padding: 30px;
+    padding: 40px;
     text-align: center;
+    color: #6B7280;
+    transition: 0.2s ease;
 }
 
-/* METRIC */
+.upload-box:hover {
+    border-color: #6366F1;
+}
+
+/* METRICS */
 .metric {
     background: white;
     border-radius: 16px;
     padding: 20px;
     text-align: center;
     border: 1px solid #E5E7EB;
+    transition: 0.2s ease;
+}
+
+.metric:hover {
+    transform: translateY(-4px);
 }
 
 .metric h1 {
-    font-size: 36px;
+    font-size: 34px;
     margin: 0;
+    color: #111827;
 }
 
 .metric p {
     color: #6B7280;
 }
 
-/* SECTION */
+/* SECTIONS */
 .section {
     background: white;
-    padding: 20px;
+    padding: 24px;
     border-radius: 16px;
     border: 1px solid #E5E7EB;
     margin-top: 20px;
 }
 
-/* ANIMATION */
-@keyframes fadeUp {
-    from {opacity: 0; transform: translateY(20px);}
-    to {opacity: 1; transform: translateY(0);}
-}
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- HERO ----------------
 st.markdown("""
 <div class="hero">
-<h1>AI Research Assistant</h1>
-<p>Analyze research papers with AI instantly</p>
+    <h1>AI Research Assistant</h1>
+    <p>Analyze research papers instantly with AI</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------- UPLOAD ----------------
-st.markdown('<div class="upload-box">Upload PDF files</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="upload-box">
+    📂 Drag & drop or upload PDF
+</div>
+""", unsafe_allow_html=True)
 
 uploaded_files = st.file_uploader(
     " ",
@@ -164,9 +175,7 @@ uploaded_files = st.file_uploader(
 
 generate = st.button("🚀 Generate Summary")
 
-# ---------------- PROCESS ----------------
-results = []
-
+# ---------------- PDF TEXT ----------------
 def extract_text(file):
     import PyPDF2
     reader = PyPDF2.PdfReader(file)
@@ -174,6 +183,9 @@ def extract_text(file):
     for page in reader.pages:
         text += page.extract_text() or ""
     return text
+
+# ---------------- PROCESS ----------------
+results = []
 
 if generate and uploaded_files:
     with st.spinner("Processing..."):
@@ -194,6 +206,7 @@ if results:
     c3.markdown(f"<div class='metric'><p>Bandwidth</p><h1>{metrics['bandwidth']}</h1></div>", unsafe_allow_html=True)
 
     st.markdown(f"<div class='section'><h3>Summary</h3><p>{data['summary']}</p></div>", unsafe_allow_html=True)
+
     st.markdown(f"<div class='section'><h3>Methodology</h3><p>{data['methodology']}</p></div>", unsafe_allow_html=True)
 
     st.markdown("<div class='section'><h3>Contributions</h3>", unsafe_allow_html=True)
