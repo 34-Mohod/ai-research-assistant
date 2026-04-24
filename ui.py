@@ -78,7 +78,7 @@ if uploaded_files:
 
         with st.spinner("Analyzing paper..."):
             for file in uploaded_files:
-                text = extract_text_from_pdf(file)
+                text = extract_text_from_pdf(file)[:4000]
 
                 data = run_agent(text)
 
