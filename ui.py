@@ -78,16 +78,22 @@ def safe_json(output):
         }
 
 # ---------------- METRIC EXTRACT (BACKUP) ----------------
-def extract_metrics(text):
-    gain = re.search(r"(\d+\.?\d*)\s*dBi", text)
-    s11 = re.search(r"-?\d+\.?\d*\s*dB", text)
-    bw = re.search(r"(\d+\.?\d*)\s*%", text)
+    def extract_metrics(data):
+    try:
+        metrics = data.get("metrics", {})
 
-    return {
-        "gain": float(gain.group(1)) if gain else None,
-        "s11": float(s11.group(0).replace("dB","")) if s11 else None,
-        "bandwidth": float(bw.group(1)) if bw else None
-    }
+        return {
+            "gain": metrics.get("gain"),
+            "s11": metrics.get("s11"),
+            "bandwidth": metrics.get("bandwidth")
+        }
+
+    except Exception:
+        return {
+            "gain": None,
+            "s11": None,
+            "bandwidth": None
+        } 
 
 # ---------------- PROCESS ----------------
 if uploaded_files:
@@ -106,7 +112,7 @@ if uploaded_files:
 
             # fallback metrics if missing
             if not data.get("metrics"):
-                data["metrics"] = extract_metrics(output)
+                data["metrics"] = extract_metrics(data)
 
             st.session_state["current_data"] = data
 
