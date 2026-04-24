@@ -103,7 +103,23 @@ Paper Content:
             json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
 
             data = json.loads(json_str)
-            return data
+
+# 🔥 Ensure all fields exist
+return {
+    "title": data.get("title", "Not available"),
+    "summary": data.get("summary", "Not available"),
+    "methodology": data.get("methodology", "Not available"),
+    "contributions": data.get("contributions", []),
+    "results": data.get("results", "Not available"),
+    "applications": data.get("applications", "Not available"),
+    "limitations": data.get("limitations", "Not available"),
+    "future_work": data.get("future_work", "Not available"),
+    "metrics": {
+        "gain": data.get("metrics", {}).get("gain", 0),
+        "s11": data.get("metrics", {}).get("s11", 0),
+        "bandwidth": data.get("metrics", {}).get("bandwidth", 0)
+    }
+}
 
         except Exception as parse_error:
             print("JSON PARSE ERROR:", parse_error)
