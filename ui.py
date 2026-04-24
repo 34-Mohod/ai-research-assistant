@@ -6,10 +6,6 @@ import PyPDF2
 
 st.set_page_config(layout="wide")
 
-# ---------------- SESSION FIX (ONLY IMPORTANT ADD) ----------------
-if "results" not in st.session_state:
-    st.session_state.results = []
-
 # ---------------- PREMIUM CSS ----------------
 st.markdown("""
 <style>
@@ -18,11 +14,15 @@ html, body, [class*="css"]  {
     background-color: #0B0F19;
     color: #E5E7EB;
 }
+
+/* Main Container */
 .block-container {
     max-width: 1100px;
     margin: auto;
     padding-top: 2rem;
 }
+
+/* Header */
 .header {
     display: flex;
     justify-content: space-between;
@@ -31,20 +31,33 @@ html, body, [class*="css"]  {
     border-bottom: 1px solid #1F2937;
     margin-bottom: 2rem;
 }
+
+/* Cards */
 .card {
     background: #111827;
     border: 1px solid #1F2937;
     padding: 20px;
     border-radius: 16px;
+    transition: 0.2s ease;
 }
+
+.card:hover {
+    transform: translateY(-3px);
+    border-color: #374151;
+}
+
+/* Metrics */
 .metric-value {
     font-size: 34px;
     font-weight: 700;
 }
+
 .metric-label {
     color: #9CA3AF;
     font-size: 14px;
 }
+
+/* Sections */
 .section {
     background: #111827;
     border: 1px solid #1F2937;
@@ -52,10 +65,49 @@ html, body, [class*="css"]  {
     border-radius: 16px;
     margin-bottom: 20px;
 }
+
+.section h3 {
+    margin-bottom: 10px;
+}
+
+/* Buttons */
 .stButton>button {
     background: #6366F1;
     color: white;
     border-radius: 10px;
+    padding: 10px 20px;
+    border: none;
+    transition: 0.2s;
+}
+
+.stButton>button:hover {
+    background: #4F46E5;
+}
+
+/* Tabs */
+div[role="tablist"] {
+    gap: 10px;
+}
+
+button[role="tab"] {
+    background: #111827;
+    border-radius: 999px;
+    padding: 8px 18px;
+    border: 1px solid #1F2937;
+}
+
+button[aria-selected="true"] {
+    background: #6366F1 !important;
+    color: white !important;
+}
+
+/* Code block */
+pre {
+    background: #111827;
+    border: 1px solid #1F2937;
+    padding: 15px;
+    border-radius: 12px;
+    overflow-x: auto;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -82,23 +134,19 @@ def extract_text_from_pdf(uploaded_file):
         text += page.extract_text() or ""
     return text
 
-# ---------------- GENERATE ----------------
+results = []
+
 if uploaded_files:
     if st.button("🚀 Generate Summary"):
-
-        # 🔥 clear old results before new run
-        st.session_state.results = []
-
         with st.spinner("Analyzing paper..."):
             for file in uploaded_files:
                 text = extract_text_from_pdf(file)
                 data = run_agent(text)
-                st.session_state.results.append(data)
+                results.append(data)
 
 # ---------------- DISPLAY ----------------
-if st.session_state.results:
-
-    data = st.session_state.results[-1]
+if results:
+    data = results[-1]
     metrics = data["metrics"]
 
     tab1, tab2, tab3 = st.tabs(["Analysis", "Raw Data", "Comparison"])
@@ -128,6 +176,9 @@ if st.session_state.results:
         </div>
         """, unsafe_allow_html=True)
 
+        st.markdown("")
+
+        # -------- Sections --------
         st.markdown(f"""
         <div class="section">
             <h3>🧾 Summary</h3>
@@ -135,46 +186,128 @@ if st.session_state.results:
         </div>
         """, unsafe_allow_html=True)
 
+        st.markdown(f"""
+        <div class="section">
+            <h3>⚙️ Methodology</h3>
+            <p>{data['methodology']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<div class='section'><h3>🚀 Contributions</h3>", unsafe_allow_html=True)
+        for c in data["contributions"]:
+            st.markdown(f"- {c}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="section">
+            <h3>📊 Results</h3>
+            <p>{data['results']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="section">
+            <h3>📌 Applications</h3>
+            <p>{data.get('applications','')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="section">
+            <h3>⚠ Limitations</h3>
+            <p>{data.get('limitations','')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="section">
+            <h3>🔮 Future Work</h3>
+            <p>{data.get('future_work','')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # -------- Radar --------
+        df = pd.DataFrame(dict(
+            r=[
+                metrics["gain"]/20,
+                abs(metrics["s11"])/100,
+                metrics["bandwidth"]/100
+            ],
+            theta=["Gain", "S11", "Bandwidth"]
+        ))
+
+        fig = px.line_polar(df, r="r", theta="theta", line_close=True)
+        fig.update_traces(fill='toself')
+
+        st.plotly_chart(fig, use_container_width=True)
+
     # ---------------- RAW ----------------
     with tab2:
+        st.markdown("### Raw Output")
         st.json(data)
 
-    # ---------------- COMPARISON ----------------
-    with tab3:
+# ---------------- COMPARISON ----------------
 
-        if len(st.session_state.results) < 2:
-            st.warning("Upload at least 2 papers for comparison")
+with tab3:
 
-        else:
-            comparison_data = []
+    if len(results) < 2:
 
-            for i, r in enumerate(st.session_state.results):
-                comparison_data.append({
-                    "Paper": f"Paper {i+1}",
-                    "Gain": r["metrics"]["gain"],
-                    "S11": r["metrics"]["s11"],
-                    "Bandwidth": r["metrics"]["bandwidth"]
-                })
+        st.warning("Upload at least 2 papers for comparison")
 
-            df = pd.DataFrame(comparison_data)
+    else:
 
-            st.subheader("📊 Comparison Table")
-            st.dataframe(df, use_container_width=True)
+        import pandas as pd
 
-            st.subheader("📈 Performance Comparison")
+        # -------- TABLE --------
 
-            chart_df = df.melt(
-                id_vars="Paper",
-                var_name="Metric",
-                value_name="Value"
-            )
+        comparison_data = []
 
-            fig = px.bar(
-                chart_df,
-                x="Paper",
-                y="Value",
-                color="Metric",
-                barmode="group"
-            )
+        for i, r in enumerate(results):
 
-            st.plotly_chart(fig, use_container_width=True)
+            comparison_data.append({
+
+                "Paper": f"Paper {i+1}",
+
+                "Gain": r["metrics"]["gain"],
+
+                "S11": r["metrics"]["s11"],
+
+                "Bandwidth": r["metrics"]["bandwidth"]
+
+            })
+
+        df = pd.DataFrame(comparison_data)
+
+        st.subheader("📊 Comparison Table")
+
+        st.dataframe(df, use_container_width=True)
+
+        # -------- BAR CHART --------
+
+        st.subheader("📈 Performance Comparison")
+
+        chart_df = df.melt(
+
+            id_vars="Paper",
+
+            var_name="Metric",
+
+            value_name="Value"
+
+        )
+
+        fig = px.bar(
+
+            chart_df,
+
+            x="Paper",
+
+            y="Value",
+
+            color="Metric",
+
+            barmode="group"
+
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
