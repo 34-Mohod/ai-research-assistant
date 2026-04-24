@@ -54,46 +54,46 @@ Paper:
             max_tokens=1200
         )
 
-       output = response.choices[0].message.content
+        output = response.choices[0].message.content
 
-print("\n📦 RAW OUTPUT:\n", output)
+        print("\n📦 RAW OUTPUT:\n", output)
 
-try:
-    start = output.find("{")
-    end = output.rfind("}") + 1
+        try:
+            start = output.find("{")
+            end = output.rfind("}") + 1
 
-    json_str = output[start:end]
+            json_str = output[start:end]
 
-    # Clean issues from LLM
-    json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
-    json_str = json_str.replace("\n", " ")
+            # Clean issues from LLM
+            json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
+            json_str = json_str.replace("\n", " ")
 
-    # Fix trailing commas (VERY IMPORTANT)
-    json_str = re.sub(r",\s*}", "}", json_str)
-    json_str = re.sub(r",\s*]", "]", json_str)
+            # Fix trailing commas
+            json_str = re.sub(r",\s*}", "}", json_str)
+            json_str = re.sub(r",\s*]", "]", json_str)
 
-    data = json.loads(json_str)
+            data = json.loads(json_str)
 
-    return data
+            return data
 
-except Exception as e:
-    print("\n🔥 JSON PARSE ERROR:", e)
+        except Exception as e:
+            print("\n🔥 JSON PARSE ERROR:", e)
 
-    return {
-        "title": "Fallback",
-        "summary": "Fallback summary",
-        "methodology": "Fallback methodology",
-        "contributions": [],
-        "results": "Fallback results",
-        "applications": "",
-        "limitations": "",
-        "future_work": "",
-        "metrics": {
-            "gain": 10,
-            "s11": -20,
-            "bandwidth": 30
-        }
-    }
+            return {
+                "title": "Fallback",
+                "summary": "Fallback summary",
+                "methodology": "Fallback methodology",
+                "contributions": [],
+                "results": "Fallback results",
+                "applications": "",
+                "limitations": "",
+                "future_work": "",
+                "metrics": {
+                    "gain": 10,
+                    "s11": -20,
+                    "bandwidth": 30
+                }
+            }
 
     except Exception as e:
         print("ERROR:", e)
