@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from modules.agent_controller import run_agent
-from modules.judge_agent import judge_papers   # ✅ ADDED
+from modules.judge_agent import judge_papers
 import PyPDF2
 
 st.set_page_config(layout="wide")
