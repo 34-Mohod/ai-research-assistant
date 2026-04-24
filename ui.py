@@ -145,11 +145,13 @@ if uploaded_files:
                 results.append(data)
 
 # ---------------- DISPLAY ----------------
-tab1, tab2, tab3 = st.tabs(["Analysis", "Raw Data", "Comparison"])
-
 if results:
+
+    tab1, tab2, tab3 = st.tabs(["Analysis", "Raw Data", "Comparison"])
+
     data = results[-1]
     metrics = data["metrics"]
+
     # ---------------- ANALYSIS ----------------
     with tab1:
         col1, col2, col3 = st.columns(3)
@@ -177,7 +179,6 @@ if results:
 
         st.markdown("")
 
-        # -------- Sections --------
         st.markdown(f"""
         <div class="section">
             <h3>🧾 Summary</h3>
@@ -225,7 +226,6 @@ if results:
         </div>
         """, unsafe_allow_html=True)
 
-        # -------- Radar --------
         df = pd.DataFrame(dict(
             r=[
                 metrics["gain"]/20,
@@ -245,68 +245,42 @@ if results:
         st.markdown("### Raw Output")
         st.json(data)
 
-# ---------------- COMPARISON ----------------
+    # ---------------- COMPARISON ----------------
+    with tab3:
 
-with tab3:
+        if len(results) < 2:
+            st.warning("Upload at least 2 papers for comparison")
 
-    if len(results) < 2:
+        else:
+            comparison_data = []
 
-        st.warning("Upload at least 2 papers for comparison")
+            for i, r in enumerate(results):
+                comparison_data.append({
+                    "Paper": f"Paper {i+1}",
+                    "Gain": r["metrics"]["gain"],
+                    "S11": r["metrics"]["s11"],
+                    "Bandwidth": r["metrics"]["bandwidth"]
+                })
 
-    else:
+            df = pd.DataFrame(comparison_data)
 
-        import pandas as pd
+            st.subheader("📊 Comparison Table")
+            st.dataframe(df, use_container_width=True)
 
-        # -------- TABLE --------
+            st.subheader("📈 Performance Comparison")
 
-        comparison_data = []
+            chart_df = df.melt(
+                id_vars="Paper",
+                var_name="Metric",
+                value_name="Value"
+            )
 
-        for i, r in enumerate(results):
+            fig = px.bar(
+                chart_df,
+                x="Paper",
+                y="Value",
+                color="Metric",
+                barmode="group"
+            )
 
-            comparison_data.append({
-
-                "Paper": f"Paper {i+1}",
-
-                "Gain": r["metrics"]["gain"],
-
-                "S11": r["metrics"]["s11"],
-
-                "Bandwidth": r["metrics"]["bandwidth"]
-
-            })
-
-        df = pd.DataFrame(comparison_data)
-
-        st.subheader("📊 Comparison Table")
-
-        st.dataframe(df, use_container_width=True)
-
-        # -------- BAR CHART --------
-
-        st.subheader("📈 Performance Comparison")
-
-        chart_df = df.melt(
-
-            id_vars="Paper",
-
-            var_name="Metric",
-
-            value_name="Value"
-
-        )
-
-        fig = px.bar(
-
-            chart_df,
-
-            x="Paper",
-
-            y="Value",
-
-            color="Metric",
-
-            barmode="group"
-
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
