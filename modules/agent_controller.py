@@ -62,18 +62,31 @@ Paper:
         print("\n📦 RAW OUTPUT:\n", output)
 
         # ✅ JSON extraction
-        start = output.find("{")
-        end = output.rfind("}") + 1
-        json_str = output[start:end]
+        match = re.search(r"\{.*\}", output, re.DOTALL)
 
-        # Clean JSON
-        json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
-        json_str = json_str.replace("\n", " ")
-        json_str = re.sub(r",\s*}", "}", json_str)
-        json_str = re.sub(r",\s*]", "]", json_str)
+if not match:
 
-        data = json.loads(json_str)
-        return data
+    raise ValueError("No JSON found in output")
+
+json_str = match.group(0)
+
+# Clean JSON
+
+json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
+
+json_str = json_str.replace("\n", " ")
+
+# Fix common LLM mistakes
+
+json_str = re.sub(r",\s*}", "}", json_str)
+
+json_str = re.sub(r",\s*]", "]", json_str)
+
+print("\n🧹 CLEAN JSON:\n", json_str)
+
+data = json.loads(json_str)
+
+return data
 
     except Exception as e:
         print("\n🔥 ERROR:", e)
