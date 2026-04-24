@@ -248,7 +248,7 @@ if results:
 
     # ---------------- COMPARISON ----------------
     with tab3:
-    if len(results) < 2:
+        if len(results) < 2:
         st.warning("Upload at least 2 papers for comparison")
     else:
         import pandas as pd
