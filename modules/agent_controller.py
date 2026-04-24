@@ -64,29 +64,24 @@ Paper:
         # ✅ JSON extraction
         match = re.search(r"\{.*\}", output, re.DOTALL)
 
-if not match:
+        if not match:
+            raise ValueError("No JSON found in output")
 
-    raise ValueError("No JSON found in output")
+        json_str = match.group(0)
 
-json_str = match.group(0)
+        # Clean JSON
+        json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
+        json_str = json_str.replace("\n", " ")
 
-# Clean JSON
+        # Fix common LLM mistakes
+        json_str = re.sub(r",\s*}", "}", json_str)
+        json_str = re.sub(r",\s*]", "]", json_str)
 
-json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
+        print("\n🧹 CLEAN JSON:\n", json_str)
 
-json_str = json_str.replace("\n", " ")
+        data = json.loads(json_str)
 
-# Fix common LLM mistakes
-
-json_str = re.sub(r",\s*}", "}", json_str)
-
-json_str = re.sub(r",\s*]", "]", json_str)
-
-print("\n🧹 CLEAN JSON:\n", json_str)
-
-data = json.loads(json_str)
-
-return data
+        return data
 
     except Exception as e:
         print("\n🔥 ERROR:", e)
