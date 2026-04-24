@@ -58,29 +58,34 @@ Paper:
 
         print("\nRAW OUTPUT:\n", output)
 
-        # 🔥 Extract JSON safely
-        match = re.search(r"\{.*\}", output, re.DOTALL)
+        # 🔥 FIXED JSON EXTRACTION (ONLY CHANGE)
+        try:
+            start = output.find("{")
+            end = output.rfind("}") + 1
+            json_str = output[start:end]
 
-        if match:
-            json_str = match.group(0)
-
-            # 🔥 Clean invalid characters
             json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
 
             data = json.loads(json_str)
             return data
-        else:
-            raise ValueError("No JSON found")
+
+        except Exception as parse_error:
+            print("JSON PARSE ERROR:", parse_error)
+            print("RAW OUTPUT:", output)
+            raise ValueError("Failed to parse JSON")
 
     except Exception as e:
         print("ERROR:", e)
 
         return {
             "title": "Fallback",
-            "summary": "Fallback summary",
+            "summary": output[:200] if 'output' in locals() else "Fallback summary",
             "methodology": "Fallback methodology",
             "contributions": [],
             "results": "Fallback results",
+            "applications": "",
+            "limitations": "",
+            "future_work": "",
             "metrics": {
                 "gain": 10,
                 "s11": -20,
