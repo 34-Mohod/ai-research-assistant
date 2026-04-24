@@ -1,10 +1,7 @@
-import streamlit as st
+kimport streamlit as st
 import tempfile
 import json
-import time
-import re
 from modules.agent_controller import run_agent
-
 
 # ---------------- CONFIG ----------------
 st.set_page_config(
@@ -47,12 +44,8 @@ body {
 st.markdown('<div class="title">🧠 AI Research Assistant</div>', unsafe_allow_html=True)
 
 # ---------------- STATE ----------------
-if "papers" not in st.session_state:
-    st.session_state["papers"] = []
-
 if "current_data" not in st.session_state:
     st.session_state["current_data"] = None
-
 
 # ---------------- FILE UPLOAD ----------------
 uploaded_files = st.file_uploader(
@@ -61,40 +54,19 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-
-# ---------------- SAFE JSON PARSE ----------------
+# ---------------- SAFE PARSE ----------------
 def safe_json(output):
     try:
         return json.loads(output)
     except:
         return {
             "title": "Parsing Failed",
-            "summary": output,
+            "summary": str(output),
             "contributions": [],
             "methodology": "",
             "results": "",
             "metrics": {}
         }
-
-
-# ---------------- METRIC EXTRACT (FIXED) ----------------
-def extract_metrics(data):
-    try:
-        metrics = data.get("metrics", {})
-
-        return {
-            "gain": metrics.get("gain"),
-            "s11": metrics.get("s11"),
-            "bandwidth": metrics.get("bandwidth")
-        }
-
-    except Exception:
-        return {
-            "gain": None,
-            "s11": None,
-            "bandwidth": None
-        }
-
 
 # ---------------- PROCESS ----------------
 if uploaded_files:
@@ -111,27 +83,44 @@ if uploaded_files:
 
             data = safe_json(output)
 
-            # fallback metrics fix
-            if not data.get("metrics"):
-                data["metrics"] = extract_metrics(data)
+            # ✅ FIX: Flatten nested JSON (CRITICAL FIX)
+            if isinstance(data.get("summary"), dict):
+                inner = data["summary"]
+
+                data["summary"] = inner.get("summary", "")
+                data["methodology"] = inner.get("methodology", "")
+                data["contributions"] = inner.get("contributions", [])
+                data["results"] = inner.get("results", "")
+                data["metrics"] = inner.get("metrics", {})
 
             st.session_state["current_data"] = data
-
 
 # ---------------- DISPLAY ----------------
 data = st.session_state.get("current_data")
 
 if data:
+
     metrics = data.get("metrics", {})
 
     def safe(v, unit=""):
-        return f"{v} {unit}" if v else "N/A"
+        return f"{v}{unit}" if v is not None else "N/A"
 
     col1, col2, col3 = st.columns(3)
 
-    col1.markdown(f'<div class="metric-card">Gain<br><h2>{safe(metrics.get("gain"), "dBi")}</h2></div>', unsafe_allow_html=True)
-    col2.markdown(f'<div class="metric-card">S11<br><h2>{safe(metrics.get("s11"), "dB")}</h2></div>', unsafe_allow_html=True)
-    col3.markdown(f'<div class="metric-card">Bandwidth<br><h2>{safe(metrics.get("bandwidth"), "%")}</h2></div>', unsafe_allow_html=True)
+    col1.markdown(
+        f"<div class='metric-card'>Gain<br><h2>{safe(metrics.get('gain'), ' dBi')}</h2></div>",
+        unsafe_allow_html=True
+    )
+
+    col2.markdown(
+        f"<div class='metric-card'>S11<br><h2>{safe(metrics.get('s11'), ' dB')}</h2></div>",
+        unsafe_allow_html=True
+    )
+
+    col3.markdown(
+        f"<div class='metric-card'>Bandwidth<br><h2>{safe(metrics.get('bandwidth'), ' %')}</h2></div>",
+        unsafe_allow_html=True
+    )
 
     st.markdown("---")
 
@@ -139,23 +128,28 @@ if data:
 
     with colA:
         st.markdown("### 🧠 Summary")
-        st.markdown(f'<div class="section">{data.get("summary", "")}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='section'>{data.get('summary','')}</div>",
+            unsafe_allow_html=True
+        )
 
     with colB:
         st.markdown("### ⚙️ Methodology")
-        st.markdown(f'<div class="section">{data.get("methodology", "")}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='section'>{data.get('methodology','')}</div>",
+            unsafe_allow_html=True
+        )
 
     st.markdown("### 🚀 Contributions")
     for c in data.get("contributions", []):
-        st.write(f"• {c}")
+        st.write(f"- {c}")
 
     st.markdown("### 📊 Results")
     st.write(data.get("results", ""))
 
-
-# ---------------- DEBUG TAB ----------------
+# ---------------- RAW OUTPUT ----------------
 st.markdown("---")
-st.markdown("### Raw Output")
+st.markdown("## Raw Output")
 
 if data:
     st.code(json.dumps(data, indent=2))
