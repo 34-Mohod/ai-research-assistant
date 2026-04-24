@@ -10,41 +10,77 @@ def run_agent(text):
         text = text[:6000]
 
         prompt = f"""
-You are an expert RF and antenna researcher.
+You are a senior RF and antenna systems researcher.
 
-Analyze the research paper and return STRICT JSON.
+Carefully analyze the following research paper and extract structured technical insights.
 
-Extract:
-- Title
-- Detailed Summary (5-6 lines)
-- Methodology (detailed explanation)
-- Key Contributions (list)
-- Results (with numerical values if present)
-- Applications (real-world use cases)
-- Limitations (technical constraints)
-- Future Work (research directions)
-- Metrics (gain in dBi, S11 in dB, bandwidth in %)
+IMPORTANT RULES:
+- Be precise and technical.
+- Do NOT hallucinate values.
+- If a metric is not explicitly given, estimate based on context (reasonable engineering assumption).
+- Always return ALL fields.
+- DO NOT return anything except JSON.
 
-Return ONLY JSON in this format:
+----------------------------------------
+
+Extract the following:
+
+1. Title
+
+2. Summary  
+(5–6 lines, technical but readable)
+
+3. Methodology  
+(Explain design approach, materials, simulation tools, structure)
+
+4. Key Contributions  
+(List 3–6 bullet points)
+
+5. Results  
+(Include numerical values like gain, S11, bandwidth, frequency, efficiency if present)
+
+6. Applications  
+(Real-world use cases)
+
+7. Limitations  
+(Design constraints, fabrication issues, losses, etc.)
+
+8. Future Work  
+(Possible improvements or research extensions)
+
+9. Metrics (MANDATORY):
+- Gain (in dBi)
+- S11 (in dB, NEGATIVE value expected)
+- Bandwidth (in MHz or %, convert to MHz if possible)
+
+If exact values are missing:
+- Estimate from context (e.g., "high gain" → 8–12 dBi)
+- Never leave metrics as 0
+
+----------------------------------------
+
+Return STRICT JSON:
 
 {{
-"title": "",
-"summary": "",
-"methodology": "",
-"contributions": [],
-"results": "",
-"applications": "",
-"limitations": "",
-"future_work": "",
-"metrics": {{
-"gain": 0,
-"s11": 0,
-"bandwidth": 0
-}}
+  "title": "",
+  "summary": "",
+  "methodology": "",
+  "contributions": [],
+  "results": "",
+  "applications": "",
+  "limitations": "",
+  "future_work": "",
+  "metrics": {{
+    "gain": 0,
+    "s11": 0,
+    "bandwidth": 0
+  }}
 }}
 
-Paper:
-{text}
+----------------------------------------
+
+Paper Content:
+{text[:6000]}
 """
 
         response = client.chat.completions.create(
