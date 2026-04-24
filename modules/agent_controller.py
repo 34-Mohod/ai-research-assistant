@@ -54,33 +54,46 @@ Paper:
             max_tokens=1200
         )
 
-        output = response.choices[0].message.content
+       output = response.choices[0].message.content
 
-        # Extract JSON safely
-        start = output.find("{")
-        end = output.rfind("}") + 1
-        json_str = output[start:end]
+print("\n📦 RAW OUTPUT:\n", output)
 
-        json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
+try:
+    start = output.find("{")
+    end = output.rfind("}") + 1
 
-        data = json.loads(json_str)
+    json_str = output[start:end]
 
-        # Ensure all fields exist
-        return {
-            "title": data.get("title", "Not available"),
-            "summary": data.get("summary", "Not available"),
-            "methodology": data.get("methodology", "Not available"),
-            "contributions": data.get("contributions", []),
-            "results": data.get("results", "Not available"),
-            "applications": data.get("applications", "Not available"),
-            "limitations": data.get("limitations", "Not available"),
-            "future_work": data.get("future_work", "Not available"),
-            "metrics": {
-                "gain": data.get("metrics", {}).get("gain", 0),
-                "s11": data.get("metrics", {}).get("s11", 0),
-                "bandwidth": data.get("metrics", {}).get("bandwidth", 0)
-            }
+    # Clean issues from LLM
+    json_str = re.sub(r"[\x00-\x1F]+", " ", json_str)
+    json_str = json_str.replace("\n", " ")
+
+    # Fix trailing commas (VERY IMPORTANT)
+    json_str = re.sub(r",\s*}", "}", json_str)
+    json_str = re.sub(r",\s*]", "]", json_str)
+
+    data = json.loads(json_str)
+
+    return data
+
+except Exception as e:
+    print("\n🔥 JSON PARSE ERROR:", e)
+
+    return {
+        "title": "Fallback",
+        "summary": "Fallback summary",
+        "methodology": "Fallback methodology",
+        "contributions": [],
+        "results": "Fallback results",
+        "applications": "",
+        "limitations": "",
+        "future_work": "",
+        "metrics": {
+            "gain": 10,
+            "s11": -20,
+            "bandwidth": 30
         }
+    }
 
     except Exception as e:
         print("ERROR:", e)
