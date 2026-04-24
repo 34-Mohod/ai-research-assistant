@@ -1,5 +1,5 @@
 streamlit
-pymupdf
-plotly
 pandas
+plotly
 groq
+

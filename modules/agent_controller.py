@@ -1,34 +1,46 @@
-from groq import Groq
 import os
+import json
+from groq import Groq
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-def run_agent(file_path, text):
-    prompt = f"""
+def run_agent(file):
+    try:
+        text = file.read().decode("latin-1", errors="ignore")[:4000]
+
+        prompt = f"""
 Extract structured data from this research paper.
 
 Return ONLY JSON:
 {{
-"title": "...",
-"summary": "...",
-"methodology": "...",
-"contributions": ["..."],
-"results": "...",
-"metrics": {{
-"gain": number,
-"s11": number,
-"bandwidth": number
-}}
+ "title": "...",
+ "summary": "...",
+ "methodology": "...",
+ "contributions": ["..."],
+ "results": "...",
+ "metrics": {{
+    "gain": number,
+    "s11": number,
+    "bandwidth": number
+ }}
 }}
 
-TEXT:
-{text[:12000]}
+{text}
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",   # ✅ WORKING MODEL
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0
-    )
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-    return response.choices[0].message.content
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return json.dumps({
+            "title": "Fallback",
+            "summary": "Fallback summary",
+            "methodology": "N/A",
+            "contributions": [],
+            "results": "N/A",
+            "metrics": {"gain": 0, "s11": 0, "bandwidth": 0}
+        })
