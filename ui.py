@@ -6,35 +6,127 @@ import PyPDF2
 
 st.set_page_config(layout="wide")
 
-# ---------------- UI STYLE ----------------
+# ---------------- PREMIUM CSS ----------------
 st.markdown("""
 <style>
-.card {
-    background: #0f172a;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
+html, body, [class*="css"]  {
+    font-family: Inter, system-ui;
+    background-color: #0B0F19;
+    color: #E5E7EB;
 }
-.section {
-    background: #0f172a;
+
+/* Main Container */
+.block-container {
+    max-width: 1100px;
+    margin: auto;
+    padding-top: 2rem;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #1F2937;
+    margin-bottom: 2rem;
+}
+
+/* Cards */
+.card {
+    background: #111827;
+    border: 1px solid #1F2937;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 16px;
+    transition: 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    border-color: #374151;
+}
+
+/* Metrics */
+.metric-value {
+    font-size: 34px;
+    font-weight: 700;
+}
+
+.metric-label {
+    color: #9CA3AF;
+    font-size: 14px;
+}
+
+/* Sections */
+.section {
+    background: #111827;
+    border: 1px solid #1F2937;
+    padding: 24px;
+    border-radius: 16px;
     margin-bottom: 20px;
+}
+
+.section h3 {
+    margin-bottom: 10px;
+}
+
+/* Buttons */
+.stButton>button {
+    background: #6366F1;
+    color: white;
+    border-radius: 10px;
+    padding: 10px 20px;
+    border: none;
+    transition: 0.2s;
+}
+
+.stButton>button:hover {
+    background: #4F46E5;
+}
+
+/* Tabs */
+div[role="tablist"] {
+    gap: 10px;
+}
+
+button[role="tab"] {
+    background: #111827;
+    border-radius: 999px;
+    padding: 8px 18px;
+    border: 1px solid #1F2937;
+}
+
+button[aria-selected="true"] {
+    background: #6366F1 !important;
+    color: white !important;
+}
+
+/* Code block */
+pre {
+    background: #111827;
+    border: 1px solid #1F2937;
+    padding: 15px;
+    border-radius: 12px;
+    overflow-x: auto;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- TITLE ----------------
-st.title("🧠 AI Research Assistant")
+# ---------------- HEADER ----------------
+st.markdown("""
+<div class="header">
+    <h2>🧠 AI Research Assistant</h2>
+    <div style="color:#9CA3AF;">Enterprise AI Dashboard</div>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------- FILE UPLOAD ----------------
 uploaded_files = st.file_uploader(
-    "Upload Papers",
+    "Upload Research Papers",
     type=["pdf"],
     accept_multiple_files=True
 )
 
-# ---------------- PDF TEXT EXTRACT ----------------
 def extract_text_from_pdf(uploaded_file):
     pdf_reader = PyPDF2.PdfReader(uploaded_file)
     text = ""
@@ -42,13 +134,11 @@ def extract_text_from_pdf(uploaded_file):
         text += page.extract_text() or ""
     return text
 
-
 results = []
 
-# ---------------- BUTTON ----------------
 if uploaded_files:
     if st.button("🚀 Generate Summary"):
-        with st.spinner("Processing..."):
+        with st.spinner("Analyzing paper..."):
             for file in uploaded_files:
                 text = extract_text_from_pdf(file)
                 data = run_agent(text)
@@ -59,36 +149,84 @@ if results:
     data = results[-1]
     metrics = data["metrics"]
 
-    tab1, tab2, tab3 = st.tabs(["Analysis", "Raw", "Comparison"])
+    tab1, tab2, tab3 = st.tabs(["Analysis", "Raw Data", "Comparison"])
 
-    # -------- ANALYSIS --------
+    # ---------------- ANALYSIS ----------------
     with tab1:
-        c1, c2, c3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-        c1.markdown(f"<div class='card'><h3>Gain</h3><h1>{metrics['gain']}</h1></div>", unsafe_allow_html=True)
-        c2.markdown(f"<div class='card'><h3>S11</h3><h1>{metrics['s11']}</h1></div>", unsafe_allow_html=True)
-        c3.markdown(f"<div class='card'><h3>Bandwidth</h3><h1>{metrics['bandwidth']}</h1></div>", unsafe_allow_html=True)
+        col1.markdown(f"""
+        <div class="card">
+            <div class="metric-label">Gain (dBi)</div>
+            <div class="metric-value">{metrics['gain']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        col2.markdown(f"""
+        <div class="card">
+            <div class="metric-label">S11 (dB)</div>
+            <div class="metric-value">{metrics['s11']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown(f"<div class='section'><h2>Summary</h2><p>{data['summary']}</p></div>", unsafe_allow_html=True)
+        col3.markdown(f"""
+        <div class="card">
+            <div class="metric-label">Bandwidth (MHz)</div>
+            <div class="metric-value">{metrics['bandwidth']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown(f"<div class='section'><h2>Methodology</h2><p>{data['methodology']}</p></div>", unsafe_allow_html=True)
+        st.markdown("")
 
-        st.markdown("<div class='section'><h2>Contributions</h2>", unsafe_allow_html=True)
+        # -------- Sections --------
+        st.markdown(f"""
+        <div class="section">
+            <h3>🧾 Summary</h3>
+            <p>{data['summary']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="section">
+            <h3>⚙️ Methodology</h3>
+            <p>{data['methodology']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<div class='section'><h3>🚀 Contributions</h3>", unsafe_allow_html=True)
         for c in data["contributions"]:
-            st.write(f"- {c}")
+            st.markdown(f"- {c}")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown(f"<div class='section'><h2>Results</h2><p>{data['results']}</p></div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="section">
+            <h3>📊 Results</h3>
+            <p>{data['results']}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown(f"<div class='section'><h2>📊 Applications</h2><p>{data.get('applications','')}</p></div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="section">
+            <h3>📌 Applications</h3>
+            <p>{data.get('applications','')}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown(f"<div class='section'><h2>⚠ Limitations</h2><p>{data.get('limitations','')}</p></div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="section">
+            <h3>⚠ Limitations</h3>
+            <p>{data.get('limitations','')}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown(f"<div class='section'><h2>🔮 Future Work</h2><p>{data.get('future_work','')}</p></div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="section">
+            <h3>🔮 Future Work</h3>
+            <p>{data.get('future_work','')}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        # Radar Chart
+        # -------- Radar --------
         df = pd.DataFrame(dict(
             r=[
                 metrics["gain"]/20,
@@ -101,12 +239,13 @@ if results:
         fig = px.line_polar(df, r="r", theta="theta", line_close=True)
         fig.update_traces(fill='toself')
 
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
-    # -------- RAW --------
+    # ---------------- RAW ----------------
     with tab2:
+        st.markdown("### Raw Output")
         st.json(data)
 
-    # -------- COMPARISON --------
+    # ---------------- COMPARISON ----------------
     with tab3:
-        st.write("Comparison coming soon...")
+        st.info("Multi-paper comparison coming soon...")
