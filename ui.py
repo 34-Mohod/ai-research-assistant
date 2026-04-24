@@ -1,18 +1,13 @@
 import streamlit as st
 import tempfile
 import json
-import time
 import plotly.express as px
 import pandas as pd
 
 from modules.agent_controller import run_agent
 
 # ---------------- CONFIG ----------------
-st.set_page_config(
-    page_title="AI Research Assistant",
-    layout="wide",
-    page_icon="🧠"
-)
+st.set_page_config(page_title="AI Research Assistant", layout="wide", page_icon="🧠")
 
 # ---------------- STYLE ----------------
 st.markdown("""
@@ -39,7 +34,6 @@ body {background-color:#0b1220; color:#e5e7eb;}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- HEADER ----------------
 st.markdown('<div class="title">🧠 AI Research Assistant</div>', unsafe_allow_html=True)
 
 # ---------------- STATE ----------------
@@ -49,16 +43,18 @@ if "papers" not in st.session_state:
 if "current_data" not in st.session_state:
     st.session_state["current_data"] = None
 
-# ---------------- HELPERS ----------------
+
+# ---------------- PARSER (MOST IMPORTANT FIX) ----------------
 def parse_output(output):
     try:
         data = json.loads(output)
 
-        # FIX nested JSON
+        # 🔥 HANDLE NESTED STRUCTURE
         if isinstance(data.get("summary"), dict):
             inner = data["summary"]
+
             return {
-                "title": inner.get("title", ""),
+                "title": inner.get("title", "Unknown"),
                 "summary": inner.get("summary", ""),
                 "methodology": inner.get("methodology", ""),
                 "contributions": inner.get("contributions", []),
@@ -70,7 +66,7 @@ def parse_output(output):
 
     except:
         return {
-            "title": "Parsing Failed",
+            "title": "Error",
             "summary": str(output),
             "methodology": "",
             "contributions": [],
@@ -83,24 +79,29 @@ def safe(v, unit=""):
     return f"{v}{unit}" if v not in [None, ""] else "N/A"
 
 
+# ---------------- RADAR (FIXED NORMALIZATION) ----------------
 def radar_chart(metrics):
-    try:
-        df = pd.DataFrame(dict(
-            r=[
-                metrics.get("gain", 0) or 0,
-                abs(metrics.get("s11", 0) or 0),
-                metrics.get("bandwidth", 0) or 0
-            ],
-            theta=["Gain", "S11", "Bandwidth"]
-        ))
 
-        fig = px.line_polar(df, r='r', theta='theta', line_close=True)
-        fig.update_traces(fill='toself')
+    gain = metrics.get("gain") or 0
+    s11 = abs(metrics.get("s11") or 0)
+    bw = metrics.get("bandwidth") or 0
 
-        st.plotly_chart(fig, use_container_width=True)
+    # normalize (VERY IMPORTANT)
+    values = [
+        gain / 20 if gain else 0,
+        s11 / 100 if s11 else 0,
+        bw / 100 if bw else 0
+    ]
 
-    except:
-        st.warning("Radar chart not available")
+    df = pd.DataFrame(dict(
+        r=values,
+        theta=["Gain", "S11", "Bandwidth"]
+    ))
+
+    fig = px.line_polar(df, r='r', theta='theta', line_close=True)
+    fig.update_traces(fill='toself')
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
 # ---------------- FILE UPLOAD ----------------
@@ -127,11 +128,13 @@ if uploaded_files:
             st.session_state["current_data"] = data
             st.session_state["papers"].append(data)
 
+
 # ---------------- TABS ----------------
 tab1, tab2, tab3 = st.tabs(["📊 Analysis", "📄 Raw Output", "⚖️ Comparison"])
 
+
 # =========================================================
-# 📊 TAB 1 - ANALYSIS
+# 📊 ANALYSIS TAB
 # =========================================================
 with tab1:
     data = st.session_state.get("current_data")
@@ -139,7 +142,6 @@ with tab1:
     if data:
         metrics = data.get("metrics") or {}
 
-        # -------- METRICS --------
         col1, col2, col3 = st.columns(3)
 
         col1.markdown(f"""
@@ -162,7 +164,6 @@ with tab1:
 
         st.markdown("---")
 
-        # -------- SUMMARY & METHOD --------
         colA, colB = st.columns(2)
 
         with colA:
@@ -173,24 +174,22 @@ with tab1:
             st.markdown("### ⚙️ Methodology")
             st.markdown(f"<div class='section'>{data.get('methodology','')}</div>", unsafe_allow_html=True)
 
-        # -------- CONTRIBUTIONS --------
         st.markdown("### 🚀 Contributions")
         for c in data.get("contributions", []):
             st.write(f"• {c}")
 
-        # -------- RESULTS --------
         st.markdown("### 📊 Results")
         st.write(data.get("results", ""))
 
-        # -------- RADAR --------
         st.markdown("### 📈 Performance Radar")
         radar_chart(metrics)
 
     else:
-        st.info("Upload and process a paper first")
+        st.info("Upload and process a paper")
+
 
 # =========================================================
-# 📄 TAB 2 - RAW OUTPUT
+# 📄 RAW OUTPUT
 # =========================================================
 with tab2:
     data = st.session_state.get("current_data")
@@ -198,30 +197,34 @@ with tab2:
     if data:
         st.code(json.dumps(data, indent=2))
     else:
-        st.info("No data available")
+        st.info("No data")
+
 
 # =========================================================
-# ⚖️ TAB 3 - COMPARISON
+# ⚖️ COMPARISON TAB
 # =========================================================
 with tab3:
     papers = st.session_state.get("papers", [])
 
     if len(papers) >= 2:
 
-        df = pd.DataFrame([
-            {
+        rows = []
+
+        for i, p in enumerate(papers):
+            metrics = p.get("metrics") or {}
+
+            rows.append({
                 "Paper": p.get("title", f"Paper {i}"),
-                "Gain": p.get("metrics", {}).get("gain", 0),
-                "S11": p.get("metrics", {}).get("s11", 0),
-                "Bandwidth": p.get("metrics", {}).get("bandwidth", 0)
-            }
-            for i, p in enumerate(papers)
-        ])
+                "Gain": float(metrics.get("gain") or 0),
+                "S11": float(metrics.get("s11") or 0),
+                "Bandwidth": float(metrics.get("bandwidth") or 0)
+            })
+
+        df = pd.DataFrame(rows)
 
         st.dataframe(df)
 
-        # -------- COMPARISON RADAR --------
-        st.markdown("### 📊 Multi-Paper Comparison")
+        st.markdown("### 📊 Multi-Paper Radar")
 
         fig = px.line_polar(
             df.melt(id_vars=["Paper"]),
@@ -235,4 +238,4 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
     else:
-        st.info("Upload at least 2 papers for comparison")
+        st.info("Upload at least 2 papers")
