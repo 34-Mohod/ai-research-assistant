@@ -1,17 +1,33 @@
-from groq import Groq
+kfrom groq import Groq
 import json
 import os
 import re
 
+# Initialize client
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+
+# -------- Extract JSON safely --------
 def extract_json(text):
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if match:
-        return json.loads(match.group())
+        try:
+            return json.loads(match.group())
+        except:
+            return {
+                "winner": "Error",
+                "reason": "Failed to parse JSON from model output",
+                "scorecard": {}
+            }
     else:
-        raise ValueError("No JSON found")
+        return {
+            "winner": "Error",
+            "reason": "No JSON found in model output",
+            "scorecard": {}
+        }
 
+
+# -------- Judge Function --------
 def judge_papers(results):
 
     prompt = f"""
@@ -28,12 +44,12 @@ DATA:
 Return ONLY JSON:
 
 {{
-  "winner": "Paper X",
-  "reason": "short technical explanation",
-  "scorecard": {{
-    "Paper 1": score,
-    "Paper 2": score
-  }}
+    "winner": "Paper X",
+    "reason": "short technical explanation",
+    "scorecard": {{
+        "Paper 1": score,
+        "Paper 2": score
+    }}
 }}
 """
 
